@@ -71,7 +71,11 @@ releases:
       - {{ printf "infra-%s" $rn | quote }}
       - {{ printf "gaie-%s" $rn | quote }}
     values:
+    {{- if eq .Environment.Name "xpu" }}
+      - ms-pd/values_xpu.yaml
+    {{- else }}
       - ms-pd/values.yaml
+    {{- end }}
     {{- if or (eq .Environment.Name "istioBench") (eq .Environment.Name "default") }}
       - routing:
           proxy:
