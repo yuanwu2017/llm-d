@@ -18,11 +18,6 @@ routing:
     connector: nixlv2
     secure: false
 
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: infra-r1-inference-gateway
-
   inferenceModel:
     create: false
 
@@ -64,8 +59,6 @@ decode:
         value: DEBUG
       - name: CCL_ZE_IPC_EXCHANGE
         value: "pidfd"
-      - name: ZE_AFFINITY_MASK
-        value: "0"
     ports:
       - containerPort: 8200
         protocol: TCP
@@ -90,14 +83,6 @@ decode:
     emptyDir: {}
   - name: torch-compile-cache
     emptyDir: {}
-
-      
-  # XPU-specific node affinity
-  acceleratorTypes:
-    labelKey: "accelerator"
-    labelValues:
-      - "intel-xpu"
-      - "intel-gpu-max"
 
 # Disable prefill for simple XPU example
 prefill:
