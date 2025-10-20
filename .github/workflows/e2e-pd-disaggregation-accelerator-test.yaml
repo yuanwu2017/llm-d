@@ -21,6 +21,33 @@ on:
         required: true
         default: 0
         type: number
+      custom_image_tag:
+        description: 'Custom image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
+  workflow_call:
+    inputs:
+      pr_or_branch:
+        description: 'Pull-request number or branch name to test'
+        required: true
+        default: 'main'
+        type: string
+      gateway_type:
+        description: 'Gateway type to use'
+        required: false
+        default: 'kgateway'
+        type: string
+      wait_for_termination:
+        description: 'Wait time (in minutes) before terminating for debugging'
+        required: true
+        default: 0
+        type: number
+      custom_image_tag:
+        description: 'Custom image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   packages: read
@@ -431,7 +458,18 @@ jobs:
             set -x
             cd llm-d/guides/pd-disaggregation
             echo "Deploying PD-Disaggregation example with slim configuration..."
-            helmfile --selector managedBy=helmfile apply -f helmfile.yaml --skip-diff-on-install | tee ~/pd-disaggregation-deployment.log
+            
+            # Use custom image if provided
+            HELM_EXTRA_ARGS=""
+            if [ -n "${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}" ]; then
+              CUSTOM_TAG="${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}"
+              echo "🐳 Using custom PD image tag: \${CUSTOM_TAG}"
+              HELM_EXTRA_ARGS="--set ms-pd.containers[0].image=ghcr.io/llm-d/llm-d-cuda-dev:\${CUSTOM_TAG}"
+            else
+              echo "📦 Using default PD image from values"
+            fi
+            
+            helmfile --selector managedBy=helmfile apply -f helmfile.yaml --skip-diff-on-install \${HELM_EXTRA_ARGS} | tee ~/pd-disaggregation-deployment.log
             echo "---------------------------------------" >> ~/pd-disaggregation-deployment.log
           EOF
 

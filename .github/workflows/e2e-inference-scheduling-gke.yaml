@@ -13,6 +13,23 @@ on:
         required: true
         default: 'main'
         type: string
+      custom_image_tag:
+        description: 'Custom GKE image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
+  workflow_call:
+    inputs:
+      pr_or_branch:
+        description: 'Pull-request number or branch name to test'
+        required: true
+        default: 'main'
+        type: string
+      custom_image_tag:
+        description: 'Custom GKE image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -126,9 +143,22 @@ jobs:
       - name: Deploy model service and GIE with Helmfile
         run: |
           cd guides/inference-scheduling
+          
+          # Use custom image if provided
+          HELM_EXTRA_ARGS=""
+          if [ -n "${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}" ]; then
+            CUSTOM_TAG="${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}"
+            echo "🐳 Using custom GKE image tag: ${CUSTOM_TAG}"
+            # Note: Adjust the image path based on the actual GKE device type
+            HELM_EXTRA_ARGS="--set ms-inference-scheduling.containers[0].image=ghcr.io/llm-d/llm-d-gke-dev:${CUSTOM_TAG}"
+          else
+            echo "📦 Using default GKE image from values"
+          fi
+          
           helmfile apply -e ${{ matrix.accelerator.helmfile_env }} \
             --set "gateway.service.type=LoadBalancer" \
             --skip-schema-validation \
+            ${HELM_EXTRA_ARGS} \
             | tee ~/inference-scheduling-deployment.log
           echo "---------------------------------------" >> ~/inference-scheduling-deployment.log
 

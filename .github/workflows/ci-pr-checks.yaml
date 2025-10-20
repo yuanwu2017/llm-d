@@ -13,13 +13,124 @@ on:
     branches:
       - main
       - dev
-    paths:
-      - ./**/*.md
-      - .github/workflows/ci-pr-checks.yaml
-      - .github/actions/markdown-link-checker/action.yaml
+
+permissions:
+  contents: read
+  packages: write
+  pull-requests: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: llm-d
+  
 jobs:
-  lint-and-test:
+  detect-changes:
     runs-on: ubuntu-latest
+    outputs:
+      cuda-image-changed: ${{ steps.changes.outputs.cuda-image-files }}
+      xpu-image-changed: ${{ steps.changes.outputs.xpu-image-files }}
+      aws-image-changed: ${{ steps.changes.outputs.aws-image-files }}
+      gke-image-changed: ${{ steps.changes.outputs.gke-image-files }}
+      markdown-changed: ${{ steps.changes.outputs.markdown-files }}
+      test-inference: ${{ steps.changes.outputs.inference-files }}
+      test-pd: ${{ steps.changes.outputs.pd-files }}
+      changed-devices: ${{ steps.changes.outputs.changed-devices }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect file changes
+        id: changes
+        run: |
+          # Get the base branch for comparison
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE_SHA="HEAD~1"
+          fi
+          
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Initialize device flags
+          CUDA_CHANGED=false
+          XPU_CHANGED=false
+          AWS_CHANGED=false
+          GKE_CHANGED=false
+          CHANGED_DEVICES=""
+          
+          # Check for device-specific Dockerfile changes
+          if echo "$CHANGED_FILES" | grep -q "docker/Dockerfile\.cuda\|Makefile"; then
+            echo "cuda-image-files=true" >> $GITHUB_OUTPUT
+            CUDA_CHANGED=true
+            CHANGED_DEVICES="cuda"
+            echo "🔵 CUDA image files changed"
+          else
+            echo "cuda-image-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "docker/Dockerfile\.xpu\|Makefile"; then
+            echo "xpu-image-files=true" >> $GITHUB_OUTPUT
+            XPU_CHANGED=true
+            CHANGED_DEVICES="${CHANGED_DEVICES:+${CHANGED_DEVICES},}xpu"
+            echo "🟡 XPU image files changed"
+          else
+            echo "xpu-image-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "docker/Dockerfile\.aws\|Makefile"; then
+            echo "aws-image-files=true" >> $GITHUB_OUTPUT
+            AWS_CHANGED=true
+            CHANGED_DEVICES="${CHANGED_DEVICES:+${CHANGED_DEVICES},}aws"
+            echo "🟠 AWS image files changed"
+          else
+            echo "aws-image-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED_FILES" | grep -q "docker/Dockerfile\.gke\|Makefile"; then
+            echo "gke-image-files=true" >> $GITHUB_OUTPUT
+            GKE_CHANGED=true
+            CHANGED_DEVICES="${CHANGED_DEVICES:+${CHANGED_DEVICES},}gke"
+            echo "🔴 GKE image files changed"
+          else
+            echo "gke-image-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Output changed devices list
+          echo "changed-devices=${CHANGED_DEVICES}" >> $GITHUB_OUTPUT
+          echo "Changed devices: ${CHANGED_DEVICES:-none}"
+          
+          # Check for markdown changes
+          if echo "$CHANGED_FILES" | grep -q "\.md$"; then
+            echo "markdown-files=true" >> $GITHUB_OUTPUT
+            echo "📝 Markdown files changed"
+          else
+            echo "markdown-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check for inference-scheduling related changes
+          if echo "$CHANGED_FILES" | grep -q "guides/inference-scheduling/\|charts/.*inference"; then
+            echo "inference-files=true" >> $GITHUB_OUTPUT
+            echo "🔄 Inference scheduling files changed"
+          else
+            echo "inference-files=false" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check for PD (persistent disaggregation) related changes
+          if echo "$CHANGED_FILES" | grep -q "guides/pd-disaggregation/\|charts/.*pd"; then
+            echo "pd-files=true" >> $GITHUB_OUTPUT
+            echo "💾 PD disaggregation files changed"
+          else
+            echo "pd-files=false" >> $GITHUB_OUTPUT
+          fi
+
+  lint-markdown:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.markdown-changed == 'true'
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -35,3 +146,303 @@ jobs:
         uses: ./.github/actions/markdown-link-checker
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-cuda-image:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.cuda-image-changed == 'true'
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::8}"
+          else
+            TAG="branch-${GITHUB_REF_NAME}-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Build and push CUDA Docker image
+        run: |
+          TAG="${{ steps.image-tag.outputs.tag }}"
+          make image-build image-push \
+            DEVICE=cuda \
+            VERSION=${TAG} \
+            BUILD_TYPE=dev
+
+  build-xpu-image:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.xpu-image-changed == 'true'
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::8}"
+          else
+            TAG="branch-${GITHUB_REF_NAME}-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Build and push XPU Docker image
+        run: |
+          TAG="${{ steps.image-tag.outputs.tag }}"
+          make image-build image-push \
+            DEVICE=xpu \
+            VERSION=${TAG} \
+            BUILD_TYPE=dev
+
+  build-aws-image:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.aws-image-changed == 'true'
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::8}"
+          else
+            TAG="branch-${GITHUB_REF_NAME}-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Build and push AWS Docker image
+        run: |
+          TAG="${{ steps.image-tag.outputs.tag }}"
+          make image-build image-push \
+            DEVICE=cuda-efa \
+            VERSION=${TAG} \
+            BUILD_TYPE=dev
+
+  build-gke-image:
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.gke-image-changed == 'true'
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}-${GITHUB_SHA::8}"
+          else
+            TAG="branch-${GITHUB_REF_NAME}-${GITHUB_SHA::8}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Generated tag: ${TAG}"
+
+      - name: Build and push GKE Docker image
+        run: |
+          TAG="${{ steps.image-tag.outputs.tag }}"
+          make image-build image-push \
+            DEVICE=gke \
+            VERSION=${TAG} \
+            BUILD_TYPE=dev
+
+  call-xpu-inference-scheduling:
+    needs: [detect-changes, build-xpu-image]
+    if: |
+      always() && 
+      (needs.detect-changes.outputs.xpu-image-changed == 'true' || needs.detect-changes.outputs.test-inference == 'true') &&
+      needs.build-xpu-image.result != 'failed'
+    uses: ./.github/workflows/e2e-inference-scheduling-xpu.yaml
+    with:
+      pr_or_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+      custom_image_tag: ${{ needs.detect-changes.outputs.xpu-image-changed == 'true' && needs.build-xpu-image.outputs.image-tag || '' }}
+    secrets: inherit
+
+  call-gke-inference-scheduling:  
+    needs: [detect-changes, build-gke-image]
+    if: |
+      always() && 
+      (needs.detect-changes.outputs.gke-image-changed == 'true' || needs.detect-changes.outputs.test-inference == 'true') &&
+      needs.build-gke-image.result != 'failed'
+    uses: ./.github/workflows/e2e-inference-scheduling-gke.yaml
+    with:
+      pr_or_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+      custom_image_tag: ${{ needs.detect-changes.outputs.gke-image-changed == 'true' && needs.build-gke-image.outputs.image-tag || '' }}
+    secrets: inherit
+
+  call-pd-disaggregation-test:
+    needs: [detect-changes, build-cuda-image, build-xpu-image]
+    if: |
+      always() && 
+      (needs.detect-changes.outputs.cuda-image-changed == 'true' || 
+       needs.detect-changes.outputs.xpu-image-changed == 'true' || 
+       needs.detect-changes.outputs.test-pd == 'true') &&
+      (needs.build-cuda-image.result != 'failed' && needs.build-xpu-image.result != 'failed')
+    uses: ./.github/workflows/e2e-pd-disaggregation-accelerator-test.yaml
+    with:
+      pr_or_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+      gateway_type: 'istio'
+      wait_for_termination: 0
+      custom_image_tag: ${{ (needs.detect-changes.outputs.cuda-image-changed == 'true' && needs.build-cuda-image.outputs.image-tag) || (needs.detect-changes.outputs.xpu-image-changed == 'true' && needs.build-xpu-image.outputs.image-tag) || '' }}
+    secrets: inherit
+
+  call-gke-pd-disaggregation:
+    needs: [detect-changes, build-gke-image]
+    if: |
+      always() && 
+      (needs.detect-changes.outputs.gke-image-changed == 'true' || needs.detect-changes.outputs.test-pd == 'true') &&
+      needs.build-gke-image.result != 'failed'
+    uses: ./.github/workflows/e2e-pd-disaggregation-gke.yaml
+    with:
+      pr_or_branch: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref_name }}
+      custom_image_tag: ${{ needs.detect-changes.outputs.gke-image-changed == 'true' && needs.build-gke-image.outputs.image-tag || '' }}
+    secrets: inherit
+
+  report-status:
+    runs-on: ubuntu-latest
+    needs: [
+      detect-changes, 
+      lint-markdown, 
+      build-cuda-image, 
+      build-xpu-image, 
+      build-aws-image, 
+      build-gke-image,
+      call-xpu-inference-scheduling,
+      call-gke-inference-scheduling,
+      call-pd-disaggregation-test,
+      call-gke-pd-disaggregation
+    ]
+    if: always()
+    steps:
+      - name: Report CI status
+        run: |
+          echo "## 🔍 CI Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Change Detection | ✅ Completed |" >> $GITHUB_STEP_SUMMARY
+          echo "| Markdown Linting | ${{ needs.lint-markdown.result == 'success' && '✅ Passed' || needs.lint-markdown.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Image Building Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Device | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| CUDA | ${{ needs.build-cuda-image.result == 'success' && '✅ Built' || needs.build-cuda-image.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| XPU | ${{ needs.build-xpu-image.result == 'success' && '✅ Built' || needs.build-xpu-image.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| AWS | ${{ needs.build-aws-image.result == 'success' && '✅ Built' || needs.build-aws-image.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GKE | ${{ needs.build-gke-image.result == 'success' && '✅ Built' || needs.build-gke-image.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🧪 E2E Testing Results (Reusable Workflows)" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| XPU Inference Scheduling | ${{ needs.call-xpu-inference-scheduling.result == 'success' && '✅ Passed' || needs.call-xpu-inference-scheduling.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GKE Inference Scheduling | ${{ needs.call-gke-inference-scheduling.result == 'success' && '✅ Passed' || needs.call-gke-inference-scheduling.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PD Disaggregation (Accelerator) | ${{ needs.call-pd-disaggregation-test.result == 'success' && '✅ Passed' || needs.call-pd-disaggregation-test.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PD Disaggregation (GKE) | ${{ needs.call-gke-pd-disaggregation.result == 'success' && '✅ Passed' || needs.call-gke-pd-disaggregation.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Show changed devices and image tags
+          CHANGED_DEVICES="${{ needs.detect-changes.outputs.changed-devices }}"
+          if [ -n "$CHANGED_DEVICES" ]; then
+            echo "### 📝 Changed Devices Triggering Tests: $CHANGED_DEVICES" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🐳 Custom Image Tags Passed to E2E Tests" >> $GITHUB_STEP_SUMMARY
+            echo "| Device | Image Tag | Status |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-----------|---------|" >> $GITHUB_STEP_SUMMARY
+            
+            # Show XPU image info
+            if [ "${{ needs.detect-changes.outputs.xpu-image-changed }}" = "true" ]; then
+              echo "| XPU | \`${{ needs.build-xpu-image.outputs.image-tag }}\` | 🔄 Custom image used |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| XPU | Default | 📦 Using values file |" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Show GKE image info
+            if [ "${{ needs.detect-changes.outputs.gke-image-changed }}" = "true" ]; then
+              echo "| GKE | \`${{ needs.build-gke-image.outputs.image-tag }}\` | 🔄 Custom image used |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| GKE | Default | 📦 Using values file |" >> $GITHUB_STEP_SUMMARY
+            fi
+            
+            # Show CUDA image info for PD
+            if [ "${{ needs.detect-changes.outputs.cuda-image-changed }}" = "true" ]; then
+              echo "| CUDA (PD) | \`${{ needs.build-cuda-image.outputs.image-tag }}\` | 🔄 Custom image used |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| CUDA (PD) | Default | 📦 Using values file |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### 📝 No device-specific changes detected - running functional tests with default images" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ℹ️ Workflow Integration & Image Passing" >> $GITHUB_STEP_SUMMARY
+          echo "This CI leverages existing E2E workflows with **dynamic image injection**:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`e2e-inference-scheduling-xpu.yaml\` - Custom XPU images via \`--set ms-inference-scheduling.containers[0].image\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`e2e-inference-scheduling-gke.yaml\` - Custom GKE images via \`--set ms-inference-scheduling.containers[0].image\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`e2e-pd-disaggregation-accelerator-test.yaml\` - Custom CUDA images via \`--set ms-pd.containers[0].image\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`e2e-pd-disaggregation-gke.yaml\` - Custom GKE images via \`--set ms-pd.containers[0].image\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**🔧 Image Override Mechanism:** When new images are built, they're passed as \`custom_image_tag\` parameter to E2E workflows, which use Helm \`--set\` to override the default image in values files." >> $GITHUB_STEP_SUMMARY
+          
+          # Set overall status
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "❌ Some CI checks failed"
+            exit 1
+          else
+            echo "✅ All CI checks passed or skipped as expected"
+          fi

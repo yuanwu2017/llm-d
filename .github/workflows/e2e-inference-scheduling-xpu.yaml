@@ -10,6 +10,23 @@ on:
         required: true
         default: 'main'
         type: string
+      custom_image_tag:
+        description: 'Custom XPU image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
+  workflow_call:
+    inputs:
+      pr_or_branch:
+        description: 'Pull-request number or branch name to test'
+        required: true
+        default: 'main'
+        type: string
+      custom_image_tag:
+        description: 'Custom XPU image tag to use (optional)'
+        required: false
+        default: ''
+        type: string
 jobs:
   deploy_and_validate:
     if: >
@@ -84,8 +101,19 @@ jobs:
       - name: Deploy guide
         run: |
           cd guides/inference-scheduling
+          
+          # Use custom image if provided
+          HELM_EXTRA_ARGS=""
+          if [ -n "${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}" ]; then
+            CUSTOM_TAG="${{ github.event.inputs.custom_image_tag || inputs.custom_image_tag }}"
+            echo "🐳 Using custom XPU image tag: ${CUSTOM_TAG}"
+            HELM_EXTRA_ARGS="--set ms-inference-scheduling.containers[0].image=ghcr.io/llm-d/llm-d-xpu-dev:${CUSTOM_TAG}"
+          else
+            echo "📦 Using default XPU image from values"
+          fi
+          
           RELEASE_NAME_POSTFIX=${RELEASE_NAME_POSTFIX} \
-          helmfile apply -e xpu -n "${NAMESPACE}" \
+          helmfile apply -e xpu -n "${NAMESPACE}" ${HELM_EXTRA_ARGS} \
             | tee ~/inference-scheduling-deployment.log
           echo "---------------------------------------" >> ~/inference-scheduling-xpu-deployment.log
 
