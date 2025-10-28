@@ -38,6 +38,11 @@ For very large models leveraging wide-EP, traffic for KV cache transfer may cont
 
 This guide expects 8 Nvidia GPUs of any kind, and RDMA via InfiniBand or RoCE between all pods in the workload.
 
+### Intel XPU Hardware Requirements
+
+For Intel XPU deployments:
+* 4 Intel Data Center GPUs Max 1550 or Intel BMG GPUs.
+
 ## Prerequisites
 
 - Have the [proper client tools installed on your local system](../prereq/client-setup/README.md) to use this guide.
@@ -55,6 +60,18 @@ export NAMESPACE=llm-d-pd # Or any namespace your heart desires
 cd guides/pd-disaggregation
 helmfile apply -n ${NAMESPACE}
 ```
+
+**For Intel XPU deployments**, use the XPU-specific environment:
+
+```bash
+export NAMESPACE=llm-d-pd
+cd guides/pd-disaggregation
+helmfile apply -e xpu -n ${NAMESPACE}
+```
+
+> **Resource Requirements by GPU Type:**
+> * **Intel Data Center GPU Max 1550**: Use `gpu.intel.com/i915`
+> * **Intel BMG GPU**: Use `gpu.intel.com/xe`
 
 **_NOTE:_** You can set the `$RELEASE_NAME_POSTFIX` env variable to change the release names. This is how we support concurrent installs. Ex: `RELEASE_NAME_POSTFIX=pd-2 helmfile apply -n ${NAMESPACE}`
 
