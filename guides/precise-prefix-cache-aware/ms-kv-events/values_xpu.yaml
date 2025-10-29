@@ -69,6 +69,7 @@ decode:
         - 107
     env:
       - name: GAIE_RELEASE_NAME_POSTFIX # index 0 matters because of set in helmfile
+        value: "default"
       - name: NAMESPACE
         valueFrom:
           fieldRef:
