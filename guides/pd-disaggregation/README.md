@@ -73,6 +73,36 @@ helmfile apply -e xpu -n ${NAMESPACE}
 > * **Intel Data Center GPU Max 1550**: Use `gpu.intel.com/i915`
 > * **Intel BMG GPU**: Use `gpu.intel.com/xe`
 
+ **_NOTE:_** For Intel BMG GPU Users**: Before running `helmfile apply`, you must update the GPU resource type in `ms-pd/values_xpu.yaml`:
+>
+> ```yaml
+> # Edit ms-pd/values_xpu.yaml
+> accelerator:
+>   type: intel
+>   resources:
+>     intel: "gpu.intel.com/xe"  # Add gpu.intel.com/xe
+>
+> # Also update decode and prefill resource specifications:
+> decode:
+>   containers:
+>   - name: "vllm"
+>     resources:
+>       limits:
+>         gpu.intel.com/xe: 1  # Change from gpu.intel.com/i915 to gpu.intel.com/xe
+>       requests:
+>         gpu.intel.com/xe: 1  # Change from gpu.intel.com/i915 to gpu.intel.com/xe
+>
+> prefill:
+>   containers:
+>   - name: "vllm"
+>     resources:
+>       limits:
+>         gpu.intel.com/xe: 1  # Change from gpu.intel.com/i915 to gpu.intel.com/xe
+>       requests:
+>         gpu.intel.com/xe: 1  # Change from gpu.intel.com/i915 to gpu.intel.com/xe
+> ```
+
+
 **_NOTE:_** You can set the `$RELEASE_NAME_POSTFIX` env variable to change the release names. This is how we support concurrent installs. Ex: `RELEASE_NAME_POSTFIX=pd-2 helmfile apply -n ${NAMESPACE}`
 
 **_NOTE:_** This uses Istio as the default provider, see [Gateway Options](./README.md#gateway-options) for installing with a specific provider.
