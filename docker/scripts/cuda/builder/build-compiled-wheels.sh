@@ -23,7 +23,7 @@ source "${VIRTUAL_ENV}/bin/activate"
 source /usr/local/bin/setup-sccache
 
 # install build tools (cmake from pip provides 3.22+ needed by pplx-kernels)
-uv pip install build cuda-python numpy setuptools-scm ninja cmake
+uv pip install build cuda-python numpy setuptools-scm ninja cmake requests filelock tqdm
 
 # install nvshmem4py from PyPI (works on both x86 and ARM64)
 uv pip install nvshmem4py-cu"${CUDA_MAJOR}"==0.1.2
@@ -59,17 +59,17 @@ rm -rf deepgemm
 
 # build pplx-kernels wheel (skip on ARM64)
 if [ "${TARGETPLATFORM}" != "linux/arm64" ]; then
-    git clone "${PPLX_KERNELS_REPO}" pplx-kernels
-    cd pplx-kernels
-    git checkout "${PPLX_KERNELS_SHA}"
-    TORCH_CUDA_ARCH_LIST="9.0a;10.0+PTX" NVSHMEM_PREFIX="${NVSHMEM_DIR}" uv build --wheel --out-dir /wheels
-    cd ..
-    rm -rf pplx-kernels
+  git clone "${PPLX_KERNELS_REPO}" pplx-kernels
+  cd pplx-kernels
+  git checkout "${PPLX_KERNELS_SHA}"
+  TORCH_CUDA_ARCH_LIST="9.0a;10.0+PTX" NVSHMEM_PREFIX="${NVSHMEM_DIR}" uv build --wheel --out-dir /wheels
+  cd ..
+  rm -rf pplx-kernels
 else
-    echo "Skipping pplx-kernels build on ARM64"
+  echo "Skipping pplx-kernels build on ARM64"
 fi
 
 if [ "${USE_SCCACHE}" = "true" ]; then
-    echo "=== Compiled wheels build complete - sccache stats ==="
-    sccache --show-stats
+  echo "=== Compiled wheels build complete - sccache stats ==="
+  sccache --show-stats
 fi

@@ -11,7 +11,7 @@ HELM_VER="v3.17.3"
 # Helmdiff version
 HELMDIFF_VERSION="v3.11.0"
 # Helmfile version
-HELMFILE_VERSION="1.1.3"
+HELMFILE_VERSION="1.2.1"
 # chart-testing version
 CT_VERSION="3.12.0"
 
@@ -174,12 +174,7 @@ fi
 ########################################
 if ! command -v helmfile &> /dev/null; then
   echo "📦 helmfile not found. Installing ${HELMFILE_VERSION}..."
-  if [[ "$OS" == "darwin" && "$ARCH" == "arm64" ]]; then
-    ARCHIVE="helmfile_${HELMFILE_VERSION}_darwin_arm64.tar.gz"
-  else
-    ARCHIVE="helmfile_${HELMFILE_VERSION}_${OS}_${ARCH}.tar.gz"
-  fi
-
+  ARCHIVE="helmfile_${HELMFILE_VERSION}_${OS}_${ARCH}.tar.gz"
   URL="https://github.com/helmfile/helmfile/releases/download/v${HELMFILE_VERSION}/${ARCHIVE}"
   curl -sSL -o "/tmp/helmfile.tar.gz" "$URL"
   tar -xzf /tmp/helmfile.tar.gz -C /tmp

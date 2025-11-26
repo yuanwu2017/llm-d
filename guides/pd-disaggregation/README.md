@@ -16,7 +16,9 @@ In this example, we will demonstrate a deployment of `Llama-3.3-70B-Instruct-FP8
 
 ## P/D Best Practices
 
-P/D disaggregation can benefit overall throughput by:
+P/D disaggregation provides more flexibility in navigating the trade-off between throughput and interactivity([ref](https://arxiv.org/html/2506.05508v1)).
+In particular, due to the elimination of prefill interference to the decode phase, P/D disaggregation can achieve lower inter token latency (ITL), thus
+improving interactivity. For a given ITL goal, P/D disaggregation can benefit overall throughput by:
 
 - Specializing P and D workers for compute-bound vs latency-bound workloads
 - Reducing the number of copies of the model (increasing KV cache RAM) with wide parallelism
@@ -52,6 +54,12 @@ Use the helmfile to compose and install the stack. The Namespace in which the st
 
 ```bash
 export NAMESPACE=llm-d-pd # Or any namespace your heart desires
+kubectl create namespace ${NAMESPACE}
+
+# Clone the repo and switch to the latest release tag 
+tag=$(curl -s https://api.github.com/repos/llm-d/llm-d/releases/latest | jq -r '.tag_name')
+git clone https://github.com/llm-d/llm-d.git && cd llm-d && git checkout "$tag"
+
 cd guides/pd-disaggregation
 helmfile apply -n ${NAMESPACE}
 ```
@@ -99,9 +107,9 @@ kubectl apply -f httproute.gke.yaml -n ${NAMESPACE}
 ```bash
 helm list -n ${NAMESPACE}
 NAME        NAMESPACE   REVISION    UPDATED                                 STATUS      CHART                       APP VERSION
-gaie-pd     llm-d-pd    1           2025-08-24 12:54:51.231537 -0700 PDT    deployed    inferencepool-v1.0.1        v1.0.1
-infra-pd    llm-d-pd    1           2025-08-24 12:54:46.983361 -0700 PDT    deployed    llm-d-infra-v1.2.4          v0.2.0
-ms-pd       llm-d-pd    1           2025-08-24 12:54:56.736873 -0700 PDT    deployed    llm-d-modelservice-v0.2.9   v0.2.0
+gaie-pd     llm-d-pd    1           2025-08-24 12:54:51.231537 -0700 PDT    deployed    inferencepool-v1.2.0-rc.1   v1.2.0-rc.1
+infra-pd    llm-d-pd    1           2025-08-24 12:54:46.983361 -0700 PDT    deployed    llm-d-infra-v1.3.4          v0.3.0
+ms-pd       llm-d-pd    1           2025-08-24 12:54:56.736873 -0700 PDT    deployed    llm-d-modelservice-v0.3.8   v0.3.0
 ```
 
 - Out of the box with this example you should have the following resources:
