@@ -20,21 +20,6 @@ routing:
     connector: nixlv2
     secure: false
 
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: infra-r1-inference-gateway
-
-  inferencePool:
-    create: false
-
-  # create httpRoute via MS for using release name r1 override
-  httpRoute:
-    create: true
-
-  epp:
-    create: false
-
 decode:
   create: true
   replicas: 2
