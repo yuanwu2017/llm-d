@@ -3,6 +3,12 @@ name: XPU Prefix Cache Test
 on:
   schedule:
     - cron: '0 10 * * *'  # 3AM PST (10:00 UTC)
+  pull_request:
+    paths:
+      - 'guides/precise-prefix-cache-aware/**/values_xpu.yaml'
+      - 'guides/precise-prefix-cache-aware/helmfile.yaml.gotmpl'
+      - 'guides/precise-prefix-cache-aware/httproute.yaml'
+      - '.github/workflows/e2e-prefix-cache-xpu.yaml'
   workflow_dispatch:
     inputs:
       pr_or_branch:
