@@ -10,7 +10,7 @@ modelArtifacts:
   authSecretName: "llm-d-hf-token"
 
 accelerator:
-  type: "intel"
+  type: "intel-i915"
 
 # Routing configuration - required for precise-prefix-cache-aware
 routing:
@@ -48,21 +48,19 @@ decode:
   - name: "vllm"
     # Use Intel latest published xpu image
     image: ghcr.io/llm-d/llm-d-xpu-dev:pr-357
-    modelCommand: custom
-    command:
-      - /bin/sh
-      - '-c'
+    modelCommand: "vllmServe"
     args:
-      - |
-        vllm serve Qwen/Qwen3-0.6B \
-        --host 0.0.0.0 \
-        --port 8200 \
-        --dtype float16 \
-        --disable-sliding-window \
-        --block-size 64 \
-        --prefix-caching-hash-algo sha256_cbor \
-        --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}' \
-        --kv-events-config "{\"enable_kv_cache_events\":true,\"publisher\":\"zmq\",\"endpoint\":\"tcp://gaie-${GAIE_RELEASE_NAME_POSTFIX}-epp.${NAMESPACE}.svc.cluster.local:5557\",\"topic\":\"kv@${POD_IP}@Qwen/Qwen3-0.6B\"}"
+      - "--dtype"
+      - "float16"
+      - "--disable-sliding-window"
+      - "--block-size"
+      - "64"
+      - "--prefix-caching-hash-algo"
+      - "sha256_cbor"
+      - "--kv-transfer-config"
+      - '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}'
+      - "--kv-events-config"
+      - "{\"enable_kv_cache_events\":true,\"publisher\":\"zmq\",\"endpoint\":\"tcp://gaie-${GAIE_RELEASE_NAME_POSTFIX}-epp.${NAMESPACE}.svc.cluster.local:5557\",\"topic\":\"kv@${POD_IP}@Qwen/Qwen3-0.6B\"}"
     securityContext:
       fsGroup: 107
       supplementalGroups:
