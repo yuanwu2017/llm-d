@@ -98,6 +98,17 @@ jobs:
         run: |
           kubectl apply -f guides/precise-prefix-cache-aware/httproute.yaml -n "${NAMESPACE}"
 
+      - name: Show initial deployment status
+        run: |
+          echo "=== Deployments ==="
+          kubectl get deployments -n "${NAMESPACE}" || true
+          echo ""
+          echo "=== Pods ==="
+          kubectl get pods -n "${NAMESPACE}" || true
+          echo ""
+          echo "=== Events ==="
+          kubectl get events -n "${NAMESPACE}" --sort-by='.lastTimestamp' || true
+
       - name: fetch helm manifests - prepare for upload
         run: |
           for release_name in "${INFRA_RELEASE_NAME}" "${GAIE_RELEASE_NAME}" "${MS_RELEASE_NAME}"; do
@@ -113,7 +124,13 @@ jobs:
             --for=condition=Ready \
             --all \
             -n "${NAMESPACE}" \
-            --timeout=10m
+            --timeout=10m || {
+              echo "❌ Pods failed to become ready. Showing pod status and events..."
+              kubectl get pods -n "${NAMESPACE}"
+              kubectl describe pods -n "${NAMESPACE}"
+              kubectl get events -n "${NAMESPACE}" --sort-by='.lastTimestamp'
+              exit 1
+            }
           echo "✅ All pods are ready."
           kubectl get pods -n "${NAMESPACE}"
 
