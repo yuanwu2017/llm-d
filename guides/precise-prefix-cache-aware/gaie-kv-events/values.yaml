@@ -30,10 +30,9 @@ inferenceExtension:
         secretKeyRef:
           name: llm-d-hf-token
           key: HF_TOKEN
-  flags:
+  extraArgs:
     # Log verbosity
-    - name: v
-      value: 4
+    - "-v=4"
   
   pluginsConfigFile: "precise-prefix-cache-config.yaml"
   pluginsCustomConfig:
@@ -48,6 +47,9 @@ inferenceExtension:
               tokenProcessorConfig:
                 blockSize: 64   
                 hashSeed: "42"
+              tokenizersPoolConfig:
+                hf:
+                  tokenizersCacheDir: "/tmp/tokenizers"
         - type: kv-cache-utilization-scorer
         - type: queue-scorer
         - type: max-score-picker
