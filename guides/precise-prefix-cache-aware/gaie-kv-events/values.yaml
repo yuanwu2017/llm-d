@@ -30,9 +30,10 @@ inferenceExtension:
         secretKeyRef:
           name: llm-d-hf-token
           key: HF_TOKEN
-  extraArgs:
+  flags:
     # Log verbosity
-    - "-v=4"
+    - name: v
+      value: 4
   
   pluginsConfigFile: "precise-prefix-cache-config.yaml"
   pluginsCustomConfig:
