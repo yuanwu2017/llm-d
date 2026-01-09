@@ -36,7 +36,10 @@ else
   exit 1
 fi
 
-GATEWAY_API_CRD_REVISION=${GATEWAY_API_CRD_REVISION:-"v1.4.0"}
+# NOTE: Using v1.2.0 because kgateway v2.1.1 requires BackendTLSPolicy v1alpha3,
+# which is only available in Gateway API v1.2.0, not in v1.4.0 (which only has v1).
+# See VERSION-COMPATIBILITY.md for details.
+GATEWAY_API_CRD_REVISION=${GATEWAY_API_CRD_REVISION:-"v1.2.0"}
 GATEWAY_API_CRD_REF="?ref=${GATEWAY_API_CRD_REVISION}"
 ### Base CRDs
 log_success "📜 Base CRDs: ${LOG_ACTION_NAME}..."
