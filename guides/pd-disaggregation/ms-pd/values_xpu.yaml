@@ -6,6 +6,8 @@ multinode: false
 # Configure accelerator type for Intel XPU
 accelerator:
   type: intel-i915
+  resources:
+    intel-i915: "gpu.intel.com/i915"
 
 modelArtifacts:
   uri: "hf://deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"

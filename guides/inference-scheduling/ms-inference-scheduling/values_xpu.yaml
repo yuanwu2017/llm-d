@@ -9,6 +9,8 @@ modelArtifacts:
 
 accelerator:
   type: "intel-i915"
+  resources:
+    intel-i915: "gpu.intel.com/i915"
 
 routing:
   servicePort: 8000
