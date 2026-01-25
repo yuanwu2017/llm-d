@@ -89,8 +89,10 @@ releases:
       - ms-kv-events/values_xpu.yaml
     {{- else }}
       - ms-kv-events/values.yaml
+    {{- end }}
+
     {{- if or (eq .Environment.Name "istio") (eq .Environment.Name "default") }}
-      - routing: 
+      - routing:
           {{ .Environment.Values.routing | toYaml | nindent 10 }}
     {{- end }}
     set:
