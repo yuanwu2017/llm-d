@@ -9,9 +9,6 @@ modelArtifacts:
   size: 10Gi
   authSecretName: "llm-d-hf-token"
 
-# accelerator:
-#   type: "intel-i915"
-
 dra:
   enabled: true
   type: intel
@@ -71,7 +68,7 @@ decode:
 
     ports:
       - containerPort: 8000
-        name: metrics
+        name: vllm
         protocol: TCP
     resources:
       limits:
