@@ -35,6 +35,7 @@ inferenceExtension:
         secretKeyRef:
           name: llm-d-hf-token
           key: HF_TOKEN
+
   pluginsConfigFile: "precise-prefix-cache-config.yaml"
   pluginsCustomConfig:
     precise-prefix-cache-config.yaml: |
