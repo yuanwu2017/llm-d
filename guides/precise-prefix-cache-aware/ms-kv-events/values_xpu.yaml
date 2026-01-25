@@ -9,8 +9,12 @@ modelArtifacts:
   size: 10Gi
   authSecretName: "llm-d-hf-token"
 
-accelerator:
-  type: "intel-i915"
+# accelerator:
+#   type: "intel-i915"
+
+dra:
+  enabled: true
+  type: intel
 
 routing:
   proxy:
