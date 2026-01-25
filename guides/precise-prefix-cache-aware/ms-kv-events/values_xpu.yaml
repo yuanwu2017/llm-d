@@ -43,7 +43,6 @@ decode:
           --disable-sliding-window \
           --block-size 64 \
           --prefix-caching-hash-algo sha256_cbor \
-          --kv-transfer-config '{"kv_connector":"NixlConnector", "kv_role":"kv_both", "kv_buffer_device":"cpu"}' \
           --kv-events-config "{\"enable_kv_cache_events\":true,\"publisher\":\"zmq\",\"endpoint\":\"tcp://gaie-${GAIE_RELEASE_NAME_POSTFIX}-epp.${NAMESPACE}.svc.cluster.local:5557\",\"topic\":\"kv@${POD_IP}@Qwen/Qwen3-0.6B\"}"
     securityContext:
       fsGroup: 107
@@ -63,19 +62,10 @@ decode:
           fieldRef:
             apiVersion: v1
             fieldPath: status.podIP
-      - name: VLLM_NIXL_SIDE_CHANNEL_HOST
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
-      - name: VLLM_NIXL_SIDE_CHANNEL_PORT
-        value: "5557"
       - name: VLLM_LOGGING_LEVEL
         value: DEBUG
 
     ports:
-      - containerPort: 5557
-        name: nixl
-        protocol: TCP
       - containerPort: 8000
         name: metrics
         protocol: TCP
