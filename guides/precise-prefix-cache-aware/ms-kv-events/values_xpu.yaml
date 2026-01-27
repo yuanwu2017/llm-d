@@ -29,7 +29,7 @@ decode:
   containers:
   - name: "vllm"
     # Use Intel latest published xpu image
-    image: ghcr.io/llm-d/llm-d-xpu-dev:pr-380
+    image: ghcr.io/llm-d/llm-d-xpu-dev:pr-592
     modelCommand: custom
     command:
       - /bin/sh
@@ -88,24 +88,24 @@ decode:
       httpGet:
         path: /v1/models
         port: vllm
-      initialDelaySeconds: 15
+      initialDelaySeconds: 30
       periodSeconds: 30
-      timeoutSeconds: 5
+      timeoutSeconds: 10
       failureThreshold: 60
     livenessProbe:
       httpGet:
         path: /health
         port: vllm
-      periodSeconds: 10
-      timeoutSeconds: 5
-      failureThreshold: 3
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 20
     readinessProbe:
       httpGet:
         path: /v1/models
         port: vllm
-      periodSeconds: 5
-      timeoutSeconds: 2
-      failureThreshold: 3
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 6
   volumes:
   - name: metrics-volume
     emptyDir: {}
