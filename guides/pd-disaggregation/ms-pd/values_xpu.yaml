@@ -4,9 +4,9 @@
 multinode: false
 
 # Configure accelerator type for Intel XPU via DRA
-dra:
-  enabled: true
-  type: intel
+accelerator:
+  type: intel-i915
+  dra: true
 
 modelArtifacts:
   uri: "hf://Qwen/Qwen3-0.6B"
