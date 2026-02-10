@@ -53,7 +53,7 @@ jobs:
       - name: Determine if pr_or_branch is a PR number
         id: check_pr
         env:
-          PR_OR_BRANCH: ${{ inputs.pr_or_branch || github.event.inputs.pr_or_branch }}
+          PR_OR_BRANCH: ${{ github.event.inputs.pr_or_branch }}
         shell: bash
         run: |
           echo "PR_OR_BRANCH=${PR_OR_BRANCH:-main}" >> "$GITHUB_ENV"
