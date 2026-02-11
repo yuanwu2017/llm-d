@@ -297,6 +297,12 @@ check-builder:
 		echo "✅ Using builder: $(BUILDER)"; \
 	fi
 
+.PHONY: check-buildah
+check-buildah:
+	@command -v buildah >/dev/null 2>&1 || { \
+	  echo "⚠️  buildah is not installed. You can install it with:"; \
+	  echo "🔧 sudo apt install buildah  OR  brew install buildah"; exit 1; }
+
 .PHONY: check-podman
 check-podman:
 	@command -v podman >/dev/null 2>&1 || { \
