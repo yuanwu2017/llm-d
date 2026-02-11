@@ -40,6 +40,11 @@ For very large models leveraging wide-EP, traffic for KV cache transfer may cont
 
 This guide expects 8 Nvidia GPUs of any kind, and RDMA via InfiniBand or RoCE between all pods in the workload.
 
+### Intel HPU Hardware Requirements
+
+For Intel HPU deployments:
+* Intel Gaudi2/3 machine with at least 2 Gaudi2 cards.
+
 ## Prerequisites
 
 * Have the [proper client tools installed on your local system](../prereq/client-setup/README.md) to use this guide.
@@ -65,6 +70,13 @@ Use the helmfile to compose and install the stack. The Namespace in which the st
 ```bash
 cd guides/pd-disaggregation
 helmfile apply -n ${NAMESPACE}
+```
+**For Intel HPU deployments**, use the HPU-specific environment:
+
+```bash
+export NAMESPACE=llm-d-pd
+cd guides/pd-disaggregation
+helmfile apply -e hpu -n ${NAMESPACE}
 ```
 
 **_NOTE:_** You can set the `$RELEASE_NAME_POSTFIX` env variable to change the release names. This is how we support concurrent installs. Ex: `RELEASE_NAME_POSTFIX=pd-2 helmfile apply -n ${NAMESPACE}`
