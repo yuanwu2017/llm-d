@@ -1,18 +1,11 @@
 name: Dev LLM-D Image Build
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - .github/workflows/build-image.yml
-      - docker/**
-      - patches/**
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/build-image.yml
-      - docker/**
-      - patches/**
+  workflow_call:
+    outputs:
+      xpu:
+        description: 'Whether XPU image was built'
+        value: ${{ jobs.detect-changes.outputs.xpu }}
   workflow_dispatch:
     inputs:
       platforms:

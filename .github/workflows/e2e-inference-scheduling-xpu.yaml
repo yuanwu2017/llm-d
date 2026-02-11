@@ -3,12 +3,6 @@ name: XPU Inference Scheduling Test
 on:
   schedule:
     - cron: '0 10 * * *'  # 3AM PST (10:00 UTC)
-  pull_request:
-    paths:
-      - 'guides/inference-scheduling/**/values_xpu.yaml'
-      - 'guides/inference-scheduling/helmfile.yaml.gotmpl'
-      - 'guides/inference-scheduling/httproute.yaml'
-      - '.github/workflows/e2e-inference-scheduling-xpu.yaml'
   workflow_dispatch:
     inputs:
       pr_or_branch:
@@ -116,7 +110,7 @@ jobs:
               FULL_IMAGE="ghcr.io/${{ github.repository }}-xpu-dev:${CUSTOM_TAG}"
             fi
             echo "IMAGE_TAG=${CUSTOM_TAG}" >> $GITHUB_ENV
-            echo "HELM_SET_IMAGE=--set decode.containers[0].image=${FULL_IMAGE}" >> $GITHUB_ENV
+            echo "HELM_SET_IMAGE=--set decode.containers[0].image=${FULL_IMAGE} --set decode.containers[0].imagePullPolicy=Always" >> $GITHUB_ENV
           else
             echo "Using default image tag from values file"
             echo "HELM_SET_IMAGE=" >> $GITHUB_ENV
@@ -244,6 +238,9 @@ jobs:
 
             mv ~/inference-scheduling-xpu-deployment.log . || true
             mv ~/install-deps.log . || true
+            
+            echo "Log collection completed."
+            ls -la
 
             echo "Log collection completed."
             ls -la
