@@ -71,7 +71,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-inference-scheduler](https://llm-d.slack.com/archives/C08SBNRRSBD)
+- **Slack Channel**: #sig-inference-scheduler (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1aKTJru43krjHP2ORayEEp4JP-N7dJL8S)
 - **GitHub Issues**: [github.com/llm-d/llm-d-inference-scheduler](https://github.com/llm-d/llm-d-inference-scheduler/issues)
 
@@ -93,7 +93,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-benchmarking](https://llm-d.slack.com/archives/C08TSFYMSCQ)
+- **Slack Channel**: #sig-benchmarking (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1Hd-rCRLDbucl-LD0RlQwOCLqERWF-obT)
 - **GitHub Issues**: [github.com/llm-d/llm-d-benchmark](https://github.com/llm-d/llm-d-benchmark/issues)
 
@@ -115,7 +115,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-pd-disaggregation](https://llm-d.slack.com/archives/C08T1E128PK)
+- **Slack Channel**: #sig-pd-disaggregation (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1jk7wtojsWNbYQVf7BY8BEvIg8FMRZV0q)
 - **GitHub Issues**: [github.com/llm-d/llm-d-routing-sidecar](https://github.com/llm-d/llm-d-routing-sidecar/issues)
 
@@ -137,7 +137,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-kv-disaggregation](https://llm-d.slack.com/archives/C08TB7ZDV7S)
+- **Slack Channel**: #sig-kv-disaggregation (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1mFbzwEWL2-LvD21owgxlKRcQD0eSmcz6)
 - **GitHub Issues**: [github.com/llm-d/llm-d-kv-cache](https://github.com/llm-d/llm-d-kv-cache/issues)
 
@@ -159,7 +159,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-installation](https://llm-d.slack.com/archives/C08SLBGKBEZ)
+- **Slack Channel**: #sig-installation (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1H-0Y8fXepzrYpcaUOBfuphn1Cl-gU0xr)
 - **GitHub Issues**: [github.com/llm-d-incubation/llm-d-modelservice](https://github.com/llm-d-incubation/llm-d-modelservice/issues) | [github.com/llm-d-incubation/llm-d-infra](https://github.com/llm-d-incubation/llm-d-infra/issues)
 
@@ -181,7 +181,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-autoscaling](https://llm-d.slack.com/archives/C08T899332A)
+- **Slack Channel**: #sig-autoscaling (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1iDlTgpFPOrSQn7dWR3uCQLtqhz86HTAi)
 - **GitHub Issues**: [github.com/llm-d-incubation/workload-variant-autoscaler](https://github.com/llm-d-incubation/workload-variant-autoscaler/issues)
 
@@ -203,7 +203,7 @@ SIGs operate within the broader llm-d project governance framework defined in [P
 
 **💬 Communication**:
 
-- **Slack Channel**: [#sig-observability](https://llm-d.slack.com/archives/C09305NHZ45)
+- **Slack Channel**: #sig-observability (llm-d Slack workspace: https://llm-d.ai/slack)
 - **Meeting Recordings and Docs**: [Public Google Drive](https://drive.google.com/drive/folders/1H-TVTCKYVxUn4fER7xuTPmscNttZCutN)
 
 ## Getting Involved

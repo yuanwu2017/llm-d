@@ -25,7 +25,7 @@ The purpose of this policy is to ensure a smooth on-boarding and off-boarding pr
 
 ### 2.3. Getting Help
 
-- The organization's maintainers are here to help contributors be efficient and confident in their collaboration effort. If you need help you can reach out to the maintainers on slack at the [llm-d-dev channel](https://llm-d.slack.com/archives/C08SH9K8JGK).
+- The organization's maintainers are here to help contributors be efficient and confident in their collaboration effort. If you need help you can reach out to the maintainers on slack in the #llm-d-dev channel (llm-d Slack workspace: https://llm-d.ai/slack).
 - Be sure to join the [llm-d-dev Google Group](https://groups.google.com/g/llm-d-contributors) to get access to important artifacts like proposals, diagrams, and meeting invitations.
 
 ### 2.4. Orientation
