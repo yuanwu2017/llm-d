@@ -75,42 +75,31 @@ CMAKE_EXTRA_FLAGS=()
 
 NVSHMEM_BUILD_PERF_TESTS=0 # Nvshmem perf test binaries, off by default on with debug
 if [ "${BUILD_DEBUG}" = "true" ]; then
-    echo "=== Building NVSHMEM with debug symbols and logging enabled ==="
+    echo "=== Building NVSHMEM with debug symbols and runtime logging enabled ==="
+    echo "=== This enables verbose logging that can be activated at runtime with NVSHMEM_DEBUG=TRACE ==="
 
     CMAKE_EXTRA_FLAGS+=(
         -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF
     )
 
+    # NVSHMEM_DEBUG=ON enables runtime debug logging capabilities
+    # NOTE: NVSHMEM_VERBOSE is intentionally NOT set because:
+    # - It only controls build-time verbosity (ptxas info messages, etc.)
+    # - It does NOT affect runtime logging (that comes from NVSHMEM_DEBUG)
+    # - Runtime verbose logging is controlled by NVSHMEM_DEBUG=TRACE environment variable
+    # NOTE: NVSHMEM_DEVEL is intentionally NOT set because:
+    # - It only adds strict compiler warnings (-Werror -Wall -Wextra)
+    # - It defines a macro that is never used in the code
+    # - It does NOT affect debug symbols (those come from CMAKE_BUILD_TYPE)
+    # - It does NOT affect runtime debug logging (that comes from NVSHMEM_DEBUG)
+    # - It causes build failures on warnings that we cannot override without patching
     DEBUG_FLAGS=(
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DNVSHMEM_DEBUG=ON
-        -DNVSHMEM_DEVEL=ON
-        -DNVSHMEM_VERBOSE=ON
     )
 
-    # Host compiler: keep warnings, but don't fail the build on maybe-uninitialized
-    # Use *no-error* rather than *no-warning* so you still see it in logs.
-    CMAKE_EXTRA_FLAGS+=(
-        -DCMAKE_C_FLAGS_DEBUG="-Wno-error=maybe-uninitialized"
-        -DCMAKE_CXX_FLAGS_DEBUG="-Wno-error=maybe-uninitialized"
-        -DCMAKE_C_FLAGS_RELWITHDEBINFO="-Wno-error=maybe-uninitialized"
-        -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="-Wno-error=maybe-uninitialized"
-    )
-
-    # NVCC: ensure we don't get broken "-Werror all-warnings" behavior in debug.
-    # This is the safest knob if NVSHMEM is injecting "-Werror all-warnings".
-    # We can also explicitly clear/override CUDA flags in this config.
-    CMAKE_EXTRA_FLAGS+=(
-        -DCMAKE_CUDA_FLAGS_RELWITHDEBINFO=""
-        -DCMAKE_CUDA_FLAGS_DEBUG=""
-    )
-
-    # If NVSHMEM insists on adding "-Werror all-warnings" despite NVSHMEM_WERROR=OFF,
-    # we can add a *counter-flag* at the end to neutralize it.
-    # Unfortunately, NVCC doesn't have a universal "-Wno-error" for that form,
-    # so we prefer removing it at the source (NVSHMEM_WERROR) and/or emptying CUDA flags.
-
-    NVSHMEM_BUILD_PERF_TESTS=1
+    # Tests taking too long to build
+    # NVSHMEM_BUILD_PERF_TESTS=1
 fi
 
 # Configure our build directory such that targets for specific nvshmem4py bindings exist
@@ -146,7 +135,16 @@ cmake -S . -B build -G Ninja \
     "${CMAKE_EXTRA_FLAGS[@]}" \
     "${EFA_FLAGS[@]}"
 
-ninja -C build -j"$(nproc)"
+# Calculate max jobs based on available cores
+MAX_JOBS=$(nproc)
+if [ "${BUILD_DEBUG}" = "true" ]; then
+    # Leave one core free for system tasks to prevent CI runner timeout
+    MAX_JOBS=$((MAX_JOBS - 1))
+    # Ensure at least 1 job
+    [ "${MAX_JOBS}" -lt 1 ] && MAX_JOBS=1
+fi
+
+ninja -C build -j"${MAX_JOBS}"
 cmake --install build
 rm -rf build
 
@@ -179,7 +177,8 @@ cmake -S . -B build -G Ninja \
     "${EFA_FLAGS[@]}"
 
 # explicitly build one target after re-setting up build with all bindings options (default is via discovery)
-ninja -C build "build_nvshmem4py_wheel_cu${CUDA_MAJOR}_${PYTHON_VERSION}"
+# Reuse MAX_JOBS calculation from above
+ninja -C build -j"${MAX_JOBS}" "build_nvshmem4py_wheel_cu${CUDA_MAJOR}_${PYTHON_VERSION}"
 
 # Parse our python version to platforming tag, eg: 3.12 --> 312
 PYTAG="cp${PYTHON_VERSION/./}"

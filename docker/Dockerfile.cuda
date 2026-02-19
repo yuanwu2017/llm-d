@@ -42,36 +42,43 @@ ARG UCX_VERSION="v1.20.0"
 
 ARG NVSHMEM_USE_GIT="true"
 ARG NVSHMEM_REPO="https://github.com/NVIDIA/nvshmem.git"
-ARG NVSHMEM_VERSION="v3.4.5-0"
+ARG NVSHMEM_VERSION="v3.5.19-1"
 
 ARG BUILD_NIXL_FROM_SOURCE="true"
 ARG NIXL_REPO="https://github.com/ai-dynamo/nixl.git"
-ARG NIXL_VERSION="0.9.0"
+ARG NIXL_VERSION="0.10.0"
 
 ARG INFINISTORE_REPO="https://github.com/bytedance/InfiniStore.git"
 ARG INFINISTORE_VERSION="0.2.33"
+
 ARG LMCACHE_REPO="https://github.com/LMCache/LMCache.git"
-ARG LMCACHE_VERSION="v0.3.13"
+ARG LMCACHE_VERSION="v0.3.14"
 
 # Kernels
-ARG DEEPEP_REPO="https://github.com/smarterclayton/DeepEP"
-# ARG DEEPEP_VERSION="nic_pe_alignment"
-# Use clayton's pre-rebase commit head
-ARG DEEPEP_VERSION="c66b1463601af5d127027fb459517fb97adab30d" 
+# ARG DEEPEP_REPO="https://github.com/deepseek-ai/DeepEP"
+# ARG DEEPEP_VERSION="92fe2deaec24bc92ebd9de276daa6ca9ed602ed4" 
+
+# My fork of Deepep for duplicate nvshmem IBGDA definitions, see: https://github.com/deepseek-ai/DeepEP/pull/581. 
+# Ideally we take: https://github.com/deepseek-ai/DeepEP/pull/574. Based off of v1.2.1 stable release. Needed for Compat with Nvshmem 3.5.19-1
+ARG DEEPEP_REPO="https://github.com/Gregory-Pereira/DeepEP"
+ARG DEEPEP_VERSION="fix/nvshmem-ibgda-multiple-definition" 
 
 ARG DEEPGEMM_REPO="https://github.com/deepseek-ai/DeepGEMM"
-ARG DEEPGEMM_VERSION="v2.1.0"
+ARG DEEPGEMM_VERSION="v2.1.1.post3"
+
 ARG PPLX_KERNELS_REPO="https://github.com/perplexityai/pplx-kernels"
 ARG PPLX_KERNELS_VERSION="2bd6e30fab358829bd01d1c0907be8088ff9e5e1"
-ARG FLASHINFER_REPO="https://github.com/flashinfer-ai/flashinfer.git"
-ARG FLASHINFER_VERSION="v0.5.3"
 
-# vLLM build settings
-ARG VLLM_REPO="https://github.com/vllm-project/vllm.git"
-ARG VLLM_COMMIT_SHA="d7de043d55d1dd629554467e23874097e1c48993"
-ARG VLLM_PRECOMPILED_WHEEL_COMMIT="d7de043d55d1dd629554467e23874097e1c48993"
-ARG VLLM_PREBUILT=0
-ARG VLLM_USE_PRECOMPILED=1
+ARG FLASHINFER_REPO="https://github.com/flashinfer-ai/flashinfer.git"
+ARG FLASHINFER_VERSION="v0.6.1"
+
+# vLLM build settings - provided via build args from docker/vllm-version file
+# Override here for platform-specific testing or via build args
+ARG VLLM_REPO
+ARG VLLM_COMMIT_SHA
+ARG VLLM_PRECOMPILED_WHEEL_COMMIT
+ARG VLLM_PREBUILT
+ARG VLLM_USE_PRECOMPILED
 
 # ============================================================================
 # BUILD STAGE - Install build dependencies and create wheels
