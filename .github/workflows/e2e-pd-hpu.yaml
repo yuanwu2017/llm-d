@@ -1,6 +1,8 @@
 name: HPU PD Test
 
 on:
+  schedule:
+    - cron: '30 4 * * *'  # 4:30 AM UTC daily
   pull_request:
     paths:
       - 'guides/pd-disaggregation/ms-pd/values_hpu.yaml'
@@ -19,8 +21,10 @@ on:
 jobs:
   deploy_and_validate:
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request'
+      github.repository == 'llm-d/llm-d' &&
+      (github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
+      github.event_name == 'schedule')
     runs-on: hpu
     env:
       NAMESPACE: "llm-d-hpu-pd"
@@ -32,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -200,7 +204,7 @@ jobs:
             mv ~/install-deps.log . || true
 
       - name: Upload pod logs as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: llmd-pod-logs-pd-hpu

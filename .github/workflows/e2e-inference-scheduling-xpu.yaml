@@ -29,6 +29,7 @@ on:
         type: string
 jobs:
   deploy_and_validate:
+    if: github.repository == 'llm-d/llm-d'
     runs-on: xpu
     env:
       NAMESPACE: "llm-d-xpu-is"
@@ -40,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
 
@@ -249,7 +250,7 @@ jobs:
             ls -la
 
       - name: Upload pod logs as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: llmd-pod-logs-inference-scheduling-xpu
