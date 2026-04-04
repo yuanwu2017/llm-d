@@ -110,7 +110,6 @@ jobs:
             hpu-pd-disaggregation:
               - .github/workflows/ci-pr-test.yaml
               - .github/workflows/e2e-pd-hpu.yaml
-              - .github/scripts/e2e/**
               - docker/Dockerfile.hpu
               - guides/pd-disaggregation/**/values_hpu.yaml
               - guides/pd-disaggregation/README.hpu.md
