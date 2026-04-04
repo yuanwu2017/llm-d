@@ -161,7 +161,8 @@ for i in {1..10}; do
     "model":"'"$MODEL_ID"'",
     "messages":[{"role":"user","content":"Hello!  Who are you?"}]
   }'
-  run_curl curl -sS -X POST "http://${SVC_HOST}/v1/chat/completions" \
+  run_curl curl -sS --max-time 120 --retry 2 --retry-delay 5 \
+    -X POST "http://${SVC_HOST}/v1/chat/completions" \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
     -d "$chat_payload"
@@ -178,7 +179,8 @@ for i in {1..10}; do
     "model":"'"$MODEL_ID"'",
     "prompt":"You are a helpful AI assistant."
   }'
-  run_curl curl -sS -X POST "http://${SVC_HOST}/v1/completions" \
+  run_curl curl -sS --max-time 120 --retry 2 --retry-delay 5 \
+    -X POST "http://${SVC_HOST}/v1/completions" \
     -H 'accept: application/json' \
     -H 'Content-Type: application/json' \
     -d "$payload"
