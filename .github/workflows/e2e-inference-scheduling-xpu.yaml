@@ -27,6 +27,11 @@ on:
         required: false
         default: ''
         type: string
+
+concurrency:
+  group: xpu-runner-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy_and_validate:
     if: github.repository == 'llm-d/llm-d'
@@ -262,3 +267,19 @@ jobs:
           cd guides/inference-scheduling
           helmfile destroy -e xpu -n "${NAMESPACE}"
           kubectl delete ns ${NAMESPACE}
+
+      - name: Cleanup Docker and Kind node images
+        if: always()
+        run: |
+          echo "=== Disk usage before cleanup ==="
+          df -h /
+          # Prune unused images inside the Kind node (containerd)
+          docker exec kind-control-plane crictl rmi --prune 2>/dev/null || true
+          # Remove dangling Docker images on the host
+          docker image prune -f 2>/dev/null || true
+          # Clean up build cache, keep 5GB
+          docker builder prune -f --keep-storage=5GB 2>/dev/null || true
+          # Remove stopped containers older than 24h
+          docker container prune -f --filter "until=24h" 2>/dev/null || true
+          echo "=== Disk usage after cleanup ==="
+          df -h /
