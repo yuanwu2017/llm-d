@@ -10,7 +10,7 @@ This guide demonstrates how to deploy the simulator `ghcr.io/llm-d/llm-d-inferen
 
 ## Prerequisites
 
-- Have the [proper client tools installed on your local system](../prereq/client-setup/README.md) to use this guide.
+- Have the [proper client tools installed on your local system](../../helpers/client-setup/README.md) to use this guide.
 - Configure and deploy your [Gateway control plane](../prereq/gateway-provider/README.md).
 - Have the [Monitoring stack](../../docs/monitoring/README.md) installed on your system.
 - Create a namespace for installation.
@@ -19,8 +19,6 @@ This guide demonstrates how to deploy the simulator `ghcr.io/llm-d/llm-d-inferen
   export NAMESPACE=llm-d-sim # or any other namespace (shorter names recommended)
   kubectl create namespace ${NAMESPACE}
   ```
-
-- [Choose an llm-d version](../prereq/client-setup/README.md#llm-d-version)
 
 **_NOTE:_** Unlike other examples which require models, the simulator stubs the vLLM server and so no HuggingFace token is needed.
 

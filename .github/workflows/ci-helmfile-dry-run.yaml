@@ -7,6 +7,7 @@ on:
       - guides/**/helmfile.yaml.gotmpl
       - guides/**/values*.yaml
       - guides/prereq/**
+      - helpers/**
       - docs/monitoring/scripts/install-prometheus-grafana.sh
       - .github/workflows/ci-helmfile-dry-run.yaml
   workflow_dispatch:
@@ -31,7 +32,7 @@ jobs:
           filters: |
             inference-scheduling:
               - .github/workflows/ci-helmfile-dry-run.yaml
-              - guides/prereq/client-setup/install-deps.sh
+              - helpers/client-setup/install-deps.sh
               - guides/prereq/gateway-provider/common-configurations/**
               - guides/prereq/gateway-provider/install-gateway-provider-dependencies.sh
               - guides/prereq/gateway-provider/*.helmfile.yaml
@@ -39,7 +40,7 @@ jobs:
               - guides/inference-scheduling/**
             pd-disaggregation:
               - .github/workflows/ci-helmfile-dry-run.yaml
-              - guides/prereq/client-setup/install-deps.sh
+              - helpers/client-setup/install-deps.sh
               - guides/prereq/gateway-provider/common-configurations/**
               - guides/prereq/gateway-provider/install-gateway-provider-dependencies.sh
               - guides/prereq/gateway-provider/*.helmfile.yaml
@@ -47,7 +48,7 @@ jobs:
               - guides/pd-disaggregation/**
             precise-prefix-cache-aware:
               - .github/workflows/ci-helmfile-dry-run.yaml
-              - guides/prereq/client-setup/install-deps.sh
+              - helpers/client-setup/install-deps.sh
               - guides/prereq/gateway-provider/common-configurations/**
               - guides/prereq/gateway-provider/install-gateway-provider-dependencies.sh
               - guides/prereq/gateway-provider/*.helmfile.yaml
@@ -55,7 +56,7 @@ jobs:
               - guides/precise-prefix-cache-aware/**
             simulated-accelerators:
               - .github/workflows/ci-helmfile-dry-run.yaml
-              - guides/prereq/client-setup/install-deps.sh
+              - helpers/client-setup/install-deps.sh
               - guides/prereq/gateway-provider/common-configurations/**
               - guides/prereq/gateway-provider/install-gateway-provider-dependencies.sh
               - guides/prereq/gateway-provider/*.helmfile.yaml
@@ -63,7 +64,7 @@ jobs:
               - guides/simulated-accelerators/**
             workload-autoscaling:
               - .github/workflows/ci-helmfile-dry-run.yaml
-              - guides/prereq/client-setup/install-deps.sh
+              - helpers/client-setup/install-deps.sh
               - guides/prereq/gateway-provider/common-configurations/**
               - guides/prereq/gateway-provider/install-gateway-provider-dependencies.sh
               - guides/prereq/gateway-provider/*.helmfile.yaml
@@ -81,7 +82,7 @@ jobs:
           persist-credentials: false
 
       - name: Install client dependencies
-        run: guides/prereq/client-setup/install-deps.sh
+        run: helpers/client-setup/install-deps.sh
 
       - name: Create kind cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0
@@ -162,7 +163,7 @@ jobs:
           persist-credentials: false
 
       - name: Install client dependencies
-        run: guides/prereq/client-setup/install-deps.sh
+        run: helpers/client-setup/install-deps.sh
 
       - name: Create kind cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0
@@ -243,7 +244,7 @@ jobs:
           persist-credentials: false
 
       - name: Install client dependencies
-        run: guides/prereq/client-setup/install-deps.sh
+        run: helpers/client-setup/install-deps.sh
 
       - name: Create kind cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0
@@ -324,7 +325,7 @@ jobs:
           persist-credentials: false
 
       - name: Install client dependencies
-        run: guides/prereq/client-setup/install-deps.sh
+        run: helpers/client-setup/install-deps.sh
 
       - name: Create kind cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0
@@ -405,7 +406,7 @@ jobs:
           persist-credentials: false
 
       - name: Install client dependencies
-        run: guides/prereq/client-setup/install-deps.sh
+        run: helpers/client-setup/install-deps.sh
 
       - name: Create kind cluster
         uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3  # v1.12.0

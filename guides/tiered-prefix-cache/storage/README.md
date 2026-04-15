@@ -6,7 +6,12 @@ This guide explains how to offload the vLLM prefix cache (KV cache) to shared st
 
 ## Prerequisites
 
+<<<<<<< HEAD
+* Have the [proper client tools installed on your local system](../../../helpers/client-setup/README.md) to use this guide.
+* Ensure your cluster infrastructure is sufficient to [deploy high scale inference](../../prereq/infrastructure/README.md).
+=======
 * Have the [proper client tools installed on your local system](../../prereq/client-setup/README.md) to use this guide.
+>>>>>>> origin/main
 * Configure and deploy your [Gateway control plane](../../prereq/gateway-provider/README.md).
 * Have the [Monitoring stack](../../../docs/monitoring/README.md) installed on your system.
 * Create a namespace for installation.
@@ -16,8 +21,7 @@ export NAMESPACE=llm-d-storage # or any other namespace (shorter names recommend
 kubectl create namespace ${NAMESPACE}
 ```
 
-* [Create the `llm-d-hf-token` secret in your target namespace with the key `HF_TOKEN` matching a valid HuggingFace token](../../prereq/client-setup/README.md#huggingface-token) to pull models.
-* [Choose an llm-d version](../../prereq/client-setup/README.md#llm-d-version)
+* [Create the `llm-d-hf-token` secret in your target namespace with the key `HF_TOKEN` matching a valid HuggingFace token](../../../helpers/client-setup/hf-token.md) to pull models.
 
 ## Storage Connectors
 
