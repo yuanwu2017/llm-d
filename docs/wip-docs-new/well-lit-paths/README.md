@@ -14,5 +14,8 @@ Each guide is hosted in [llm-d guides](https://github.com/llm-d/llm-d/tree/main/
 * [**Multi-Node Wide Expert Parallelism**](./wide-expert-parallelism.md) -- Deploy large MoE models over multiple nodes with DP/EP.
 * [**KV Cache Management**](./kv-cache-management.md) -- Offload KV caches to CPU RAM and storage for increased cache hit rates.
 
+### Experimental
+* [**Predicted Latency Scheduling**](./experimental/predicted-latency.md) -- Expand on intelligent inference scheduling with ML-model based prediction.
+
 > [!IMPORTANT]
 > The deployment guides are intended to be a starting point for your own configuration and deployment of model servers.
