@@ -1,26 +1,28 @@
-# Model Servers - rob
+# Model Servers
 
-The Model Server is the component that runs inference on a model. llm-d supports vLLM and SGLang as model server backends.
+The model server is the component that runs inference on a model. llm-d supports vLLM and SGLang as model server backends.
 
 ## Functionality
 
-A Model Server loads a model onto one or more accelerators (GPUs, TPUs, etc.) and exposes an OpenAI-compatible API for inference requests. In the llm-d architecture, Model Servers are the compute layer -- they execute the actual prefill and decode steps that generate tokens.
+A model server loads a model onto one or more accelerators (GPUs, TPUs, etc.) and exposes a supported API, such as OpenAI-compatible API, for inference requests. In the llm-d architecture, model servers are the compute layer -- they execute the actual prefill and decode steps that generate tokens.
 
-Model Servers are the lowest layer in the llm-d stack:
+Model servers are the lowest layer in the llm-d stack:
 
 ```
 External Traffic
     |
-[ Proxy ] <-> [ EPP ]
     |
-[ InferencePool ]
-    |
+[ Proxy ] <-> [ EPP ]-- 
+    |                 |  <-- metrics probing
+    |                 |
+    |                 |
 [ Model Server (vLLM / SGLang) ]  <-- runs inference
     |
+    |    
 [ Accelerator (GPU / TPU) ]
 ```
 
-Model Servers are deployed independently from the rest of the llm-d stack. They join an `InferencePool` automatically via Kubernetes label selectors, and the EPP begins routing traffic to them once they are healthy.
+Model servers are deployed independently from the rest of the llm-d stack. They join an `InferencePool` automatically via Kubernetes label selectors, and the EPP begins routing traffic to them once they are healthy.
 
 Key responsibilities:
 
@@ -29,266 +31,74 @@ Key responsibilities:
 - **Manage KV-cache** on GPU memory, including prefix caching for repeated prompt prefixes
 - **Support parallelism strategies** such as Tensor Parallelism (TP), Data Parallelism (DP), and Expert Parallelism (EP) for large models
 
-## Design
+## EPP <-> Model Server Protocol
 
-### Supported Backends
+This is the protocol between the EPP and the model servers. 
 
-#### vLLM
+### Metrics Reporting
 
-[vLLM](https://docs.vllm.ai/) is the primary model server used in llm-d. It provides:
+By default, the EPP is configured to scrape metrics from the model servers to make optimal request scheduling
+decisions. In this mode of operation, the model servers MUST provide the following metrics via a Prometheus endpoint. The exact
+metric names don't necessarily need to be the same as the recommended names here, however the
+metric types and semantics MUST follow this doc.
 
-- High-throughput serving with PagedAttention for efficient KV-cache management
-- Prefix caching for reduced Time To First Token (TTFT) on repeated prefixes
-- Tensor Parallelism, Data Parallelism, and Expert Parallelism for large models
-- KV-Events publishing over ZeroMQ for precise prefix cache-aware routing
-- KV-cache transfer via NIXL for prefill/decode disaggregation
+| Metric | Type | Description | vLLM metric | Triton TensorRT-LLM| trtllm-serve | SGLang |
+| ----- | ---- | ------------ | ---- | ---- | ---- | ---- |
+| TotalQueuedRequests         | Gauge     | The current total number of requests in the queue.| `vllm:num_requests_waiting`| `nv_trt_llm_request_metrics{request_type=waiting}`| `trtllm_num_requests_waiting` | `sglang:num_queue_reqs`
+| TotalRunningRequests         | Gauge     | The current total number of requests actively being served on the model server.| `vllm:num_requests_running`| `nv_trt_llm_request_metrics{request_type=scheduled}`| `trtllm_num_requests_running` | `sglang:num_running_reqs`
+| KVCacheUtilization| Gauge     | The current KV cache utilization in percentage.| `vllm:kv_cache_usage_perc`| `nv_trt_llm_kv_cache_block_metrics{kv_cache_block_type=fraction}`| `trtllm_kv_cache_utilization` | `sglang:token_usage`
+| [Optional] BlockSize         | Labeled/Gauge     | The block size in tokens to allocate memory, used by the prefix cache scorer. If this metric is not available, the BlockSize will be derived from the [prefix plugin config](https://gateway-api-inference-extension.sigs.k8s.io/guides/epp-configuration/prefix-aware/#customize-the-prefix-cache-plugin).| name: `vllm:cache_config_info`, label name: `block_size`| `nv_trt_llm_kv_cache_block_metrics{kv_cache_block_type=tokens_per}` | `trtllm_kv_cache_tokens_per_block` | name: `sglang:cache_config_info`, label name: `page_size`
+| [Optional] NumGPUBlocks| Labeled/Gauge     | The total number of blocks in the HBM KV cache, used by the prefix cache scorer. If this metric is not available, the NumGPUBlocks will be derived from the [prefix plugin config](https://gateway-api-inference-extension.sigs.k8s.io/guides/epp-configuration/prefix-aware/#customize-the-prefix-cache-plugin).| name: `vllm:cache_config_info`, label name: `num_gpu_blocks`| `nv_trt_llm_kv_cache_block_metrics{kv_cache_block_type=max}` | `trtllm_kv_cache_max_blocks` | name: `sglang:cache_config_info`, label name: `num_pages`
 
-#### SGLang
 
-[SGLang](https://github.com/sgl-project/sglang) is an alternative model server supported by llm-d. It provides:
+To correctly map metrics names, model server Pods should be labeld with the model server type they are running as demonistrated below. Pods without the engine-type label will default to vLLM metrics names.
 
-- High-performance inference with RadixAttention
-- Prefill/decode disaggregation support with NIXL backend
-- OpenAI-compatible API
-
-To use SGLang instead of vLLM, set `export INFERENCE_SERVER=sglang` in your deployment environment.
-
-### Joining an InferencePool
-
-Model Servers are discovered dynamically by the InferencePool via Kubernetes label selectors. Apply the matching labels to your Model Server Pod template:
 
 ```yaml
-labels:
-  llm-d.ai/inference-serving: "true"
+metadata:
+  labels:
+    inference.networking.k8s.io/engine-type: vllm # other options: sglang, trtllm-serve, triton-tensorrt-llm 
+
 ```
 
-Once labels match, the Model Server Pods automatically appear as endpoints in the InferencePool. The EPP begins collecting metrics and routing traffic to them.
+
+### LoRA Adapter Serving
+
+Model servers that support dynamic LoRA serving can benefit from the LoRA affinity algorithm. Note
+the current algorithm in the reference EPP is highly biased towards vLLM's current dynamic LoRA 
+implementation.
+
+The model servers MUST support serving a LoRA adapter specified in the `model` argument of the
+request, provided the requested adapter is valid.
+
+The model server MUST expose the following LoRA adapter metrics via the same Prometheus endpoint:
+
+* Metric name implemented in vLLM: `vllm:lora_requests_info` 
+* Metric type: Gauge
+* Metric value: The last updated timestamp (so the EPP can find the latest).
+* Metric labels: 
+  * `max_lora`: The maximum number of adapters that can be loaded to GPU memory to serve a batch.
+  Requests will be queued if the model server has reached MaxActiveAdapter and cannot load the
+  requested adapter. Example: `"max_lora": "8"`.
+  * `running_lora_adapters`: A comma separated list of adapters that are currently loaded in GPU
+    memory and ready to serve requests. Example: `"running_lora_adapters": "adapter1, adapter2"`
+  * `waiting_lora_adapters`: A comma separated list of adapters that are waiting to be served. Example: `"waiting_lora_adapters": "adapter1, adapter2"`
+
+### Prefix Cache Reuse
+
+The EPP supports prefix cache optimized request scheduling. To benefit from the optimal prefix aware request scheduling, model servers SHOULD support prefix cache reuse, such as the [vllm automatic prefix caching](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching.html) feature.
+
 
 ### Health Checks
 
-Model Servers expose health endpoints that Kubernetes uses for liveness and readiness probes:
+Model servers are expected to expose health endpoints that Kubernetes uses for liveness and readiness probes:
 
 - **Liveness**: `GET /health` -- confirms the server process is alive
 - **Readiness**: `GET /health` -- confirms the server is ready to accept requests
-
-### Parallelism Strategies
-
-For models too large to fit on a single accelerator, llm-d supports several parallelism strategies:
-
-| Strategy | Use Case | Description |
-|----------|----------|-------------|
-| Tensor Parallelism (TP) | Large models across GPUs within a node | Shards model layers across multiple GPUs |
-| Data Parallelism (DP) | Higher throughput on multi-GPU nodes | Runs independent model replicas sharing the same node, each handling different requests |
-| Expert Parallelism (EP) | Mixture-of-Experts (MoE) models | Distributes expert layers across GPUs, used for models like DeepSeek-R1 |
-
-These are configured via vLLM/SGLang command-line flags and are transparent to the rest of the llm-d stack.
-
-## Configuration
-
-### vLLM
-
-vLLM is configured via command-line arguments passed to `vllm serve`. Key flags:
-
-| Flag | Description | Example |
-|------|-------------|---------|
-| `--model` | Model name or path (HuggingFace ID or local path) | `meta-llama/Llama-3.1-8B-Instruct` |
-| `--port` | Port to listen on | `8000` |
-| `--tensor-parallel-size` | Number of GPUs for tensor parallelism | `4` |
-| `--data-parallel-size` | Number of data parallel replicas | `2` |
-| `--max-model-len` | Maximum sequence length | `32768` |
-| `--block-size` | KV-cache block size (must match EPP `tokenProcessorConfig.blockSize` if using precise prefix cache) | `64` |
-| `--enable-prefix-caching` | Enable prefix caching for repeated prompts | (flag) |
-| `--gpu-memory-utilization` | Fraction of GPU memory to use for KV-cache | `0.9` |
-| `--enable-metrics` | Enable Prometheus metrics endpoint | (flag) |
-| `--otlp-traces-endpoint` | OpenTelemetry endpoint for distributed tracing | `http://otel-collector:4318/v1/traces` |
-
-#### KV-Events (for Precise Prefix Cache)
-
-To enable KV-Events publishing for the [KV-Cache Indexer](../advanced/kv-indexer.md):
-
-| Flag | Description |
-|------|-------------|
-| `--kv-events-config` | JSON configuration for KV-Events publishing |
-| `--block-size` | Must match the indexer's `tokenProcessorConfig.blockSize` |
-
-KV-Events config JSON:
-
-```json
-{
-  "enable_kv_cache_events": true,
-  "publisher": "zmq",
-  "endpoint": "tcp://gaie-<release>-epp.<namespace>.svc.cluster.local:5557",
-  "topic": "kv@<pod-ip>:8000@<model-name>"
-}
-```
-
-#### Prefill/Decode Disaggregation
-
-For P/D disaggregation, separate prefill and decode workers are deployed with KV-cache transfer configuration:
-
-- **Prefill workers**: Handle the initial prompt processing (prefill phase)
-- **Decode workers**: Handle autoregressive token generation (decode phase)
-- KV-cache state is transferred between workers via NIXL
-
-### SGLang
-
-SGLang is configured via command-line arguments to `python3 -m sglang.launch_server`. Key flags:
-
-| Flag | Description | Example |
-|------|-------------|---------|
-| `--model-path` | Model name or path | `meta-llama/Llama-3.1-8B-Instruct` |
-| `--port` | Port to listen on | `8000` |
-| `--tp` | Tensor parallelism degree | `4` |
-| `--dp` | Data parallelism degree | `2` |
-| `--context-length` | Maximum context length | `32000` |
-| `--enable-metrics` | Enable Prometheus metrics | (flag) |
-| `--disaggregation-mode` | Role in P/D disaggregation (`prefill` or `decode`) | `prefill` |
-| `--disaggregation-transfer-backend` | KV transfer backend | `nixl` |
-
-### Kubernetes Deployment
-
-A basic Model Server deployment requires:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: vllm-model-server
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: vllm
-  template:
-    metadata:
-      labels:
-        app: vllm
-        llm-d.ai/inference-serving: "true"
-    spec:
-      containers:
-        - name: vllm
-          image: <vllm-image>
-          command:
-            - vllm
-            - serve
-            - <model-name>
-            - --port
-            - "8000"
-          ports:
-            - containerPort: 8000
-              name: http
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
-          resources:
-            limits:
-              nvidia.com/gpu: "1"
-```
-
-## Examples
-
-### Basic vLLM Deployment
-
-Serve Llama 3.1 8B with prefix caching enabled:
-
-```yaml
-containers:
-  - name: vllm
-    image: vllm/vllm-openai:latest
-    command:
-      - vllm
-      - serve
-      - meta-llama/Llama-3.1-8B-Instruct
-      - --port=8000
-      - --enable-prefix-caching
-      - --gpu-memory-utilization=0.9
-      - --enable-metrics
-    ports:
-      - containerPort: 8000
-        name: http
-    resources:
-      limits:
-        nvidia.com/gpu: "1"
-```
-
-### vLLM with KV-Events for Precise Prefix Cache
-
-Enable KV-Events publishing for real-time cache-aware routing:
-
-```yaml
-containers:
-  - name: vllm
-    image: vllm/vllm-openai:latest
-    command:
-      - vllm
-      - serve
-      - Qwen/Qwen3-32B
-      - --port=8000
-      - --block-size=64
-      - --enable-prefix-caching
-      - --gpu-memory-utilization=0.9
-      - --kv-events-config
-      - |
-        {
-          "enable_kv_cache_events": true,
-          "publisher": "zmq",
-          "endpoint": "tcp://gaie-release-epp.default.svc.cluster.local:5557",
-          "topic": "kv@$(POD_IP):8000@Qwen/Qwen3-32B"
-        }
-    resources:
-      limits:
-        nvidia.com/gpu: "4"
-```
-
-### SGLang with P/D Disaggregation
-
-Deploy SGLang as a prefill worker:
-
-```yaml
-containers:
-  - name: sglang
-    image: <sglang-image>
-    command:
-      - python3
-      - -m
-      - sglang.launch_server
-      - --model-path=meta-llama/Llama-3.1-8B-Instruct
-      - --port=8000
-      - --context-length=32000
-      - --enable-metrics
-      - --disaggregation-mode=prefill
-      - --disaggregation-transfer-backend=nixl
-```
-
-### Multi-GPU Tensor Parallel Deployment
-
-Serve a large model across 4 GPUs with tensor parallelism:
-
-```yaml
-containers:
-  - name: vllm
-    image: vllm/vllm-openai:latest
-    command:
-      - vllm
-      - serve
-      - meta-llama/Llama-3.1-70B-Instruct
-      - --port=8000
-      - --tensor-parallel-size=4
-      - --enable-prefix-caching
-      - --gpu-memory-utilization=0.9
-    resources:
-      limits:
-        nvidia.com/gpu: "4"
-```
 
 ## Further Reading
 
 - [vLLM Documentation](https://docs.vllm.ai/)
 - [SGLang Documentation](https://github.com/sgl-project/sglang)
-- [InferencePool](inferencepool.md) -- how Model Servers are discovered and managed
-- [EPP](epp.md) -- how the scheduler routes requests to Model Servers
+- [InferencePool](inferencepool.md) -- how model servers are discovered and managed
+- [EPP](epp) -- how the scheduler routes requests to model servers informed by model servers metrics
