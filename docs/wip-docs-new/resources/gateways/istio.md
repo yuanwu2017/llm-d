@@ -32,13 +32,10 @@ kubectl api-resources --api-group=inference.networking.k8s.io
 
 ## Step 2: Install Istio
 
-> [!NOTE]
-> Istio v1.28.0 or later is required for full Gateway API Inference Extension support.
-
 Install Istio with inference extension support enabled:
 
 ```bash
-ISTIO_VERSION=1.28.0
+ISTIO_VERSION=1.29.0
 curl -L https://istio.io/downloadIstio | ISTIO_VERSION=${ISTIO_VERSION} sh -
 export PATH="$PWD/istio-${ISTIO_VERSION}/bin:$PATH"
 istioctl install -y \
@@ -60,45 +57,13 @@ istiod-xxxxxxxxxx-xxxxx   1/1     Running   0          30s
 
 ## Step 3: Deploy Model Servers
 
-Deploy two replicas of vLLM running `openai/gpt-oss-20b`:
+Deploy two replicas of vLLM running `Qwen/Qwen3-0.6B`:
 
 > [!NOTE]
 > This example uses NVIDIA GPUs. For CPU testing, use the vLLM Simulator (`ghcr.io/llm-d/llm-d-inference-sim:latest`).
 
 ```bash
-kubectl apply -f - <<'EOF'
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-model
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: my-model
-  template:
-    metadata:
-      labels:
-        app: my-model
-        inference.networking.k8s.io/engine-type: vllm
-    spec:
-      containers:
-        - name: vllm
-          image: "vllm/vllm-openai:latest"
-          imagePullPolicy: Always
-          command: ["vllm", "serve", "openai/gpt-oss-20b"]
-          ports:
-            - containerPort: 8000
-              name: http
-              protocol: TCP
-          resources:
-            limits:
-              nvidia.com/gpu: 1
-              ephemeral-storage: "100Gi"
-            requests:
-              nvidia.com/gpu: 1
-              ephemeral-storage: "100Gi"
-EOF
+kubectl apply -f https://raw.githubusercontent.com/robertgshaw2-redhat/llm-d/clean-up-common-yamls/helpers/manifests/vllm-deployment.yaml
 ```
 
 Verify the pods are running:
@@ -112,18 +77,7 @@ kubectl get pods -l app=my-model
 Create a `Gateway` resource. Istio watches this resource and creates an Envoy-based proxy that accepts incoming traffic.
 
 ```bash
-kubectl apply -f - <<'EOF'
-apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
-metadata:
-  name: llm-d-inference-gateway
-spec:
-  gatewayClassName: istio
-  listeners:
-    - name: http
-      protocol: HTTP
-      port: 80
-EOF
+kubectl apply -k "https://github.com/robertgshaw2-redhat/llm-d/helpers/manifests/gateway/istio?ref=clean-up-common-yamls"
 ```
 
 Verify the Gateway is programmed:
@@ -141,7 +95,7 @@ llm-d-inference-gateway   istio   10.xx.xx.xx     True         30s
 
 Wait until `PROGRAMMED` shows `True` before proceeding.
 
-## Step 5: Deploy the InferencePool and EPP
+## Step 5: Deploy an InferencePool and EPP
 
 Deploy the `InferencePool` and EPP with the Helm chart, using `provider.name=istio`:
 
@@ -179,27 +133,7 @@ The EPP pod shows `1/1` rather than `2/2` because there is no sidecar proxy in t
 Create an `HTTPRoute` to connect the Gateway to the `InferencePool`. When traffic reaches the `Gateway` with this route, the Proxy will consult the EPP and forward the request to the selected pod.
 
 ```bash
-kubectl apply -f - <<'EOF'
-apiVersion: gateway.networking.k8s.io/v1
-kind: HTTPRoute
-metadata:
-  name: llm-d-route
-spec:
-  parentRefs:
-    - group: gateway.networking.k8s.io
-      kind: Gateway
-      name: llm-d-inference-gateway
-  rules:
-    - matches:
-        - path:
-            type: PathPrefix
-            value: /
-      backendRefs:
-        - group: inference.networking.k8s.io
-          kind: InferencePool
-          name: llm-d-infpool
-          port: 8000
-EOF
+kubectl apply -f https://raw.githubusercontent.com/robertgshaw2-redhat/llm-d/clean-up-common-yamls/helpers/manifests/httproute/httproute.yaml
 ```
 
 Verify the HTTPRoute is accepted:
@@ -224,29 +158,10 @@ Send an inference request through the Istio Gateway:
 curl -s http://${GATEWAY_IP}/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
-    "model": "openai/gpt-oss-20b",
+    "model": "Qwen/Qwen3-0.6B",
     "messages": [{"role": "user", "content": "Hello, who are you?"}],
     "max_tokens": 50
   }'
-```
-
-Expected output:
-
-```json
-{
-  "id": "chatcmpl-...",
-  "model": "openai/gpt-oss-20b",
-  "choices": [
-    {
-      "index": 0,
-      "finish_reason": "stop",
-      "message": {
-        "role": "assistant",
-        "content": "..."
-      }
-    }
-  ]
-}
 ```
 
 ## Cleanup
@@ -258,6 +173,9 @@ kubectl delete gateway llm-d-inference-gateway
 kubectl delete deployment my-model
 istioctl uninstall --purge -y
 kubectl delete namespace istio-system
+kubectl delete gatewayclass istio istio-remote
+kubectl delete -k "https://github.com/kubernetes-sigs/gateway-api/config/crd?ref=${GATEWAY_API_VERSION}"
+kubectl delete -k "https://github.com/kubernetes-sigs/gateway-api-inference-extension/config/crd?ref=${GAIE_VERSION}"
 ```
 
 ## Troubleshooting
