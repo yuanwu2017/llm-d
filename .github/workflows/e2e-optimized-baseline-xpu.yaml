@@ -34,10 +34,8 @@ jobs:
     env:
       NAMESPACE: "llm-d-xpu-is"
       GATEWAY_TYPE: "istio"
-      RELEASE_NAME_POSTFIX: "xpu"
-      INFRA_RELEASE_NAME: "infra-xpu"
-      GAIE_RELEASE_NAME: "gaie-xpu"
-      MS_RELEASE_NAME: "ms-xpu"
+      CHART_VERSION: "v1.4.0"
+      SCHEDULER_RELEASE_NAME: "optimized-baseline-scheduler"
 
     steps:
       - name: Checkout
@@ -108,49 +106,56 @@ jobs:
             # Check if it's a full image address (contains '/') or just a tag
             if [[ "${CUSTOM_TAG}" == *"/"* ]]; then
               echo "Using custom full image address: ${CUSTOM_TAG}"
-              FULL_IMAGE="${CUSTOM_TAG}"
+              # Split into name and tag
+              IMAGE_NAME="${CUSTOM_TAG%:*}"
+              IMAGE_TAG="${CUSTOM_TAG##*:}"
+              echo "CUSTOM_IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
+              echo "CUSTOM_IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
             else
               echo "Using custom image tag: ${CUSTOM_TAG}"
-              FULL_IMAGE="ghcr.io/${{ github.repository }}-xpu-dev:${CUSTOM_TAG}"
+              echo "CUSTOM_IMAGE_NAME=ghcr.io/${{ github.repository }}-xpu-dev" >> $GITHUB_ENV
+              echo "CUSTOM_IMAGE_TAG=${CUSTOM_TAG}" >> $GITHUB_ENV
             fi
-            echo "IMAGE_TAG=${CUSTOM_TAG}" >> $GITHUB_ENV
-            echo "HELM_SET_IMAGE=--set decode.containers[0].image=${FULL_IMAGE} --set decode.containers[0].imagePullPolicy=Always" >> $GITHUB_ENV
+            echo "HAS_CUSTOM_IMAGE=true" >> $GITHUB_ENV
           else
-            echo "Using default image tag from values file"
-            echo "HELM_SET_IMAGE=" >> $GITHUB_ENV
+            echo "Using default image from kustomization.yaml"
+            echo "HAS_CUSTOM_IMAGE=false" >> $GITHUB_ENV
           fi
 
-      - name: Deploy guide
+      - name: Deploy model server via kustomize
         run: |
-          cd guides/optimized-baseline
-          helmfile apply -e xpu -n "${NAMESPACE}" ${HELM_SET_IMAGE} \
-            --skip-schema-validation \
-            | tee ~/optimized-baseline-deployment.log
-          echo "---------------------------------------" >> ~/optimized-baseline-xpu-deployment.log
+          cd guides/optimized-baseline/modelserver/xpu/vllm
 
-      - name: Deploy HTTPRoute
+          # Override image if custom tag is provided
+          if [[ "${HAS_CUSTOM_IMAGE}" == "true" ]]; then
+            echo "Overriding image to ${CUSTOM_IMAGE_NAME}:${CUSTOM_IMAGE_TAG}"
+            cd $(git rev-parse --show-toplevel)/guides/optimized-baseline/modelserver/xpu/vllm
+            kustomize edit set image "REPLACE_MODEL_SERVER_IMAGE=${CUSTOM_IMAGE_NAME}:${CUSTOM_IMAGE_TAG}"
+          fi
+
+          echo "Building and applying kustomize manifests..."
+          kustomize build . | tee /tmp/modelserver-rendered.yaml
+          kubectl apply -n "${NAMESPACE}" -f /tmp/modelserver-rendered.yaml \
+            | tee ~/optimized-baseline-xpu-deployment.log
+
+      - name: Deploy scheduler via helm
         run: |
-          cd guides/optimized-baseline
-          echo "Deploying HTTPRoute with RELEASE_NAME_POSTFIX=${RELEASE_NAME_POSTFIX}..."
-          # Create a temporary HTTPRoute file with the correct names
-          sed -e "s/infra-optimized-baseline-inference-gateway/${INFRA_RELEASE_NAME}-inference-gateway/g" \
-              -e "s/gaie-optimized-baseline/${GAIE_RELEASE_NAME}/g" \
-              -e "s/name: llm-d-optimized-baseline/name: llm-d-xpu-is-${RELEASE_NAME_POSTFIX}/g" \
-              httproute.yaml > httproute-xpu.yaml
-          echo "Generated HTTPRoute configuration:"
-          cat httproute-xpu.yaml
-          kubectl apply -f httproute-xpu.yaml -n "${NAMESPACE}" \
+          echo "Installing scheduler (inferencepool chart) via helm..."
+          helm install "${SCHEDULER_RELEASE_NAME}" \
+            oci://registry.k8s.io/gateway-api-inference-extension/charts/inferencepool \
+            -f guides/recipes/scheduler/base.values.yaml \
+            -f guides/recipes/scheduler/features/monitoring.values.yaml \
+            -f guides/optimized-baseline/scheduler/optimized-baseline.values.yaml \
+            --set "provider.name=${GATEWAY_TYPE}" \
+            -n "${NAMESPACE}" \
+            --version "${CHART_VERSION}" \
             | tee -a ~/optimized-baseline-xpu-deployment.log
-          echo "---------------------------------------" >> ~/optimized-baseline-xpu-deployment.log
 
-      - name: fetch helm manifests - prepare for upload
+      - name: Deploy gateway and HTTPRoute via kustomize
         run: |
-          for release_name in "${INFRA_RELEASE_NAME}" "${GAIE_RELEASE_NAME}" "${MS_RELEASE_NAME}"; do
-            bash .github/scripts/e2e/helm-get-all.sh \
-              ~/optimized-baseline-xpu-deployment.log \
-              "$release_name" \
-              "$NAMESPACE"
-          done
+          echo "Deploying gateway recipe (${GATEWAY_TYPE})..."
+          kubectl apply -k "guides/recipes/gateway/${GATEWAY_TYPE}" -n "${NAMESPACE}" \
+            | tee -a ~/optimized-baseline-xpu-deployment.log
 
       - name: Wait for all pods to be ready
         id: wait_pods
@@ -259,6 +264,12 @@ jobs:
       - name: Cleanup deployment
         if: always()
         run: |
-          cd guides/optimized-baseline
-          helmfile destroy -e xpu -n "${NAMESPACE}"
-          kubectl delete ns ${NAMESPACE}
+          echo "Cleaning up helm release..."
+          helm uninstall "${SCHEDULER_RELEASE_NAME}" -n "${NAMESPACE}" || true
+          echo "Cleaning up model server..."
+          kustomize build guides/optimized-baseline/modelserver/xpu/vllm/ \
+            | kubectl delete -n "${NAMESPACE}" -f - || true
+          echo "Cleaning up gateway..."
+          kubectl delete -k "guides/recipes/gateway/${GATEWAY_TYPE}" -n "${NAMESPACE}" || true
+          echo "Deleting namespace..."
+          kubectl delete ns "${NAMESPACE}" || true
