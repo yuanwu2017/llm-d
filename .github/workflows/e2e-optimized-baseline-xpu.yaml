@@ -35,7 +35,7 @@ jobs:
       NAMESPACE: "llm-d-xpu-is"
       GATEWAY_TYPE: "istio"
       CHART_VERSION: "v1.4.0"
-      SCHEDULER_RELEASE_NAME: "optimized-baseline-scheduler"
+      SCHEDULER_RELEASE_NAME: "llm-d-infpool"
 
     steps:
       - name: Checkout
