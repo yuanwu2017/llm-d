@@ -103,18 +103,13 @@ jobs:
         run: |
           CUSTOM_TAG="${{ inputs.custom_image_tag }}"
           if [ -n "${CUSTOM_TAG}" ]; then
-            # Check if it's a full image address (contains '/') or just a tag
+            # If input contains '/' it is a full image reference; otherwise treat as a tag
             if [[ "${CUSTOM_TAG}" == *"/"* ]]; then
-              echo "Using custom full image address: ${CUSTOM_TAG}"
-              # Split into name and tag
-              IMAGE_NAME="${CUSTOM_TAG%:*}"
-              IMAGE_TAG="${CUSTOM_TAG##*:}"
-              echo "CUSTOM_IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
-              echo "CUSTOM_IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
+              echo "Using custom image reference: ${CUSTOM_TAG}"
+              echo "CUSTOM_IMAGE_REF=${CUSTOM_TAG}" >> $GITHUB_ENV
             else
               echo "Using custom image tag: ${CUSTOM_TAG}"
-              echo "CUSTOM_IMAGE_NAME=ghcr.io/${{ github.repository }}-xpu-dev" >> $GITHUB_ENV
-              echo "CUSTOM_IMAGE_TAG=${CUSTOM_TAG}" >> $GITHUB_ENV
+              echo "CUSTOM_IMAGE_REF=ghcr.io/${{ github.repository }}-xpu-dev:${CUSTOM_TAG}" >> $GITHUB_ENV
             fi
             echo "HAS_CUSTOM_IMAGE=true" >> $GITHUB_ENV
           else
@@ -126,11 +121,10 @@ jobs:
         run: |
           cd guides/optimized-baseline/modelserver/xpu/vllm
 
-          # Override image if custom tag is provided
+          # Override image if custom reference is provided
           if [[ "${HAS_CUSTOM_IMAGE}" == "true" ]]; then
-            echo "Overriding image to ${CUSTOM_IMAGE_NAME}:${CUSTOM_IMAGE_TAG}"
-            cd $(git rev-parse --show-toplevel)/guides/optimized-baseline/modelserver/xpu/vllm
-            kustomize edit set image "REPLACE_MODEL_SERVER_IMAGE=${CUSTOM_IMAGE_NAME}:${CUSTOM_IMAGE_TAG}"
+            echo "Overriding image to ${CUSTOM_IMAGE_REF}"
+            kustomize edit set image "REPLACE_MODEL_SERVER_IMAGE=${CUSTOM_IMAGE_REF}"
           fi
 
           echo "Building and applying kustomize manifests..."
