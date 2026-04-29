@@ -138,7 +138,7 @@ jobs:
           fi
 
           echo "Building and applying kustomize manifests..."
-          kubectl apply -n "${NAMESPACE}" -f /tmp/modelserver-rendered.yaml \
+          kubectl apply -n "${NAMESPACE}" -k ./ \
             | tee -a ~/optimized-baseline-xpu-deployment.log
 
       - name: Wait for all pods to be ready
