@@ -115,6 +115,30 @@ kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/gpu/vllm/
 ```
 
 <details>
+<summary><h4>Other Accelerators</h4></summary>
+
+```bash
+# AMD GPU
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/amd/vllm/
+
+# Intel XPU
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/xpu/vllm/
+
+# Intel Gaudi (HPU)
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/hpu/vllm/
+
+# Google TPU v6e
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/tpu-v6/vllm/
+
+# Google TPU v7
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/tpu-v7/vllm/
+
+# CPU
+kubectl apply -n ${NAMESPACE} -k guides/${GUIDE_NAME}/modelserver/cpu/vllm/
+```
+
+</details>
+
 <summary><h4>If you run into NCCL errors on GKE</h4></summary>
 
 Try applying the patch:
