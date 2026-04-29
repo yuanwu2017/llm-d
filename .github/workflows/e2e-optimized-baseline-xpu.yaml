@@ -138,7 +138,6 @@ jobs:
           fi
 
           echo "Building and applying kustomize manifests..."
-          kustomize build . | tee /tmp/modelserver-rendered.yaml
           kubectl apply -n "${NAMESPACE}" -f /tmp/modelserver-rendered.yaml \
             | tee -a ~/optimized-baseline-xpu-deployment.log
 
