@@ -22,9 +22,10 @@ VLLM_PRECOMPILED_WHEEL_COMMIT=b1388b1fbf5aaef47937fabe98931211684666a6 # maps to
 
 
 
-# Used by XPU. The Makefile's xpu-prepare target clones vllm-project/vllm and
-# checks out this commit.
+# Used by XPU. The Makefile's xpu-prepare target clones VLLM_XPU_REPO and
+# checks out VLLM_XPU_COMMIT_SHA.
 # Currently maps to vllm-project/vllm v0.19.1.
+VLLM_XPU_REPO=https://github.com/vllm-project/vllm.git
 VLLM_XPU_COMMIT_SHA=b1388b1fbf5aaef47937fabe98931211684666a6
 
 # ============================================================================

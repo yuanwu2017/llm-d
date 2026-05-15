@@ -5,8 +5,8 @@ include docker/common-versions
 # Defaults
 PROJECT_NAME ?= llm-d
 DOCKERFILE_DIR = docker
-# XPU clones upstream vllm-project/vllm at the commit pinned by
-# VLLM_XPU_COMMIT_SHA in docker/common-versions.
+# XPU clones VLLM_XPU_REPO at VLLM_XPU_COMMIT_SHA (both pinned in
+# docker/common-versions).
 XPU_BUILD_DIR ?= .cache/vllm-src
 
 ifeq ($(DEVICE), xpu)
@@ -216,10 +216,10 @@ xpu-prepare: ## Prepare vLLM XPU build context (clone upstream vllm at pinned SH
 		echo "❌ VLLM_XPU_COMMIT_SHA is not set (see docker/common-versions)"; \
 		exit 1; \
 	fi
-	@printf "\033[33;1m==== Preparing XPU build context @ vllm %s ====\033[0m\n" "$(VLLM_XPU_COMMIT_SHA)"
+	@printf "\033[33;1m==== Preparing XPU build context: %s @ %s ====\033[0m\n" "$(VLLM_XPU_REPO)" "$(VLLM_XPU_COMMIT_SHA)"
 	@rm -rf $(XPU_BUILD_DIR)
 	@mkdir -p $(dir $(XPU_BUILD_DIR))
-	@git clone https://github.com/vllm-project/vllm.git $(XPU_BUILD_DIR)
+	@git clone $(VLLM_XPU_REPO) $(XPU_BUILD_DIR)
 	@git -C $(XPU_BUILD_DIR) checkout $(VLLM_XPU_COMMIT_SHA)
 	@test -f $(XPU_BUILD_DIR)/docker/Dockerfile.xpu || { \
 		echo "❌ $(XPU_BUILD_DIR)/docker/Dockerfile.xpu not found at $(VLLM_XPU_COMMIT_SHA)"; \
