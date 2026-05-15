@@ -10,7 +10,7 @@ DOCKERFILE_DIR = docker
 XPU_BUILD_DIR ?= .cache/vllm-src
 
 ifeq ($(DEVICE), xpu)
-	DOCKERFILE_DIR = $(XPU_BUILD_DIR)
+	DOCKERFILE_DIR = $(XPU_BUILD_DIR)/docker
 	DOCKERFILE ?= Dockerfile.xpu
 else ifeq ($(DEVICE), cpu)
 	DOCKERFILE ?= Dockerfile.cpu
