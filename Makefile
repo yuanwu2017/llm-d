@@ -6,7 +6,7 @@ include docker/common-versions
 PROJECT_NAME ?= llm-d
 DOCKERFILE_DIR = docker
 # XPU clones upstream vllm-project/vllm at the commit pinned by
-# VLLM_XPU_COMMIT_SHA in docker/common-versions. The clone already contains.
+# VLLM_XPU_COMMIT_SHA in docker/common-versions.
 XPU_BUILD_DIR ?= .cache/vllm-src
 
 ifeq ($(DEVICE), xpu)
