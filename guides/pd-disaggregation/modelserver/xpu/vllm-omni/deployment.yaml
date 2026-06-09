@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video
+spec:
+  replicas: 1
+  template:
+    spec:
+      securityContext:
+        fsGroup: 107
+        supplementalGroups:
+          - 107
+      containers:
+        # ---------------------------------------------------------------------
+        # Aggregated Wan video worker: Dynamo frontend (/v1/videos) + vllm-omni
+        # diffusion worker in a single Pod. Mirrors the launch logic of
+        # dynamo/examples/backends/vllm/launch/xpu/agg_omni_video_xpu.sh.
+        #
+        # The frontend and worker discover each other via Dynamo's distributed
+        # runtime (etcd + NATS), provided here as in-Pod sidecars on localhost so
+        # the manifest is self-contained for single-node bring-up. For a real
+        # cluster, prefer the Dynamo Kubernetes operator (DynamoGraphDeployment)
+        # with shared etcd/NATS services.
+        # ---------------------------------------------------------------------
+        - name: modelserver
+          image: REPLACE_MODEL_SERVER_IMAGE
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              python -m dynamo.frontend &
+              sleep 2
+              exec python -m dynamo.vllm.omni \
+                --model "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" \
+                --output-modalities video \
+                --media-output-fs-url file:///tmp/dynamo_media \
+                --enforce-eager
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            # Select the Intel XPU backend for both vLLM core and vLLM-Omni.
+            - name: VLLM_TARGET_DEVICE
+              value: "xpu"
+            - name: VLLM_OMNI_TARGET_DEVICE
+              value: "xpu"
+            # DRA exposes only the allocated XPU to the container, so it is index 0.
+            - name: ZE_AFFINITY_MASK
+              value: "0"
+            - name: TORCH_LLM_ALLREDUCE
+              value: "1"
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: "spawn"
+            # Dynamo distributed runtime endpoints (sidecars below).
+            - name: ETCD_ENDPOINTS
+              value: "http://localhost:2379"
+            - name: NATS_SERVER
+              value: "nats://localhost:4222"
+            - name: DYN_HTTP_PORT
+              value: "8000"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: llm-d-hf-token
+                  key: HF_TOKEN
+          resources:
+            limits:
+              cpu: "16"
+              memory: 64Gi
+            requests:
+              cpu: "16"
+              memory: 64Gi
+            claims:
+              - name: xpu-video-claim
+          volumeMounts:
+            - mountPath: /dev/shm
+              name: shm
+            - mountPath: /tmp/dynamo_media
+              name: media
+            - mountPath: /.cache
+              name: torch-compile-cache
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+        # --- Dynamo runtime sidecars (single-node bring-up only) -------------
+        - name: etcd
+          image: quay.io/coreos/etcd:v3.5.21
+          command:
+            - etcd
+            - --listen-client-urls=http://0.0.0.0:2379
+            - --advertise-client-urls=http://localhost:2379
+            - --data-dir=/etcd-data
+          ports:
+            - name: etcd
+              containerPort: 2379
+          volumeMounts:
+            - mountPath: /etcd-data
+              name: etcd-data
+        - name: nats
+          image: nats:2.11-alpine
+          args: ["-js"]
+          ports:
+            - name: nats
+              containerPort: 4222
+      resourceClaims:
+        - name: xpu-video-claim
+          resourceClaimTemplateName: xpu-video-claim
+      volumes:
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+        - name: media
+          emptyDir: {}
+        - name: etcd-data
+          emptyDir: {}
+        - name: torch-compile-cache
+          emptyDir: {}

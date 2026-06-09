@@ -1,0 +1,61 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Aggregated (single-worker) Wan text-to-video model server on Intel XPU.
+#
+# This is intentionally SELF-CONTAINED and does NOT extend the PD `vllm` base:
+# the Wan worker is a Dynamo deployment (frontend + vllm-omni diffusion worker),
+# not a vanilla `vllm serve` pod, so the PD strategic-merge patches do not apply.
+#
+# Topology: one Pod runs the Dynamo frontend (OpenAI-compatible HTTP, /v1/videos)
+# plus the aggregated vllm-omni diffusion worker (UMT5 + DiT + VAE) pinned to a
+# single Intel XPU via ZE_AFFINITY_MASK. This is the v1 bring-up target
+# (Wan2.1-T2V-1.3B, BF16, enforce-eager). EPD pool-splitting is a follow-up that
+# depends on the upstream encode-stage split (see wan-epd-xpu-design.md §4.1.2).
+
+resources:
+  - resource-claim-templates.yaml
+  - deployment.yaml
+  - service.yaml
+
+namePrefix: agg-video-xpu-vllm-omni-
+
+configurations:
+  - namereference.yaml
+
+images:
+  # No public llm-d XPU + vllm-omni image is published yet; replace before apply.
+  - name: REPLACE_MODEL_SERVER_IMAGE
+    newName: REPLACE_MODEL_SERVER_IMAGE
+    newTag: latest
+
+labels:
+  - pairs:
+      llm-d.ai/model: Wan2.1-T2V-1.3B
+      llm-d.ai/guide: multimodal-video
+      llm-d.ai/accelerator-variant: xpu
+      llm-d.ai/accelerator-vendor: intel
+      llm-d.ai/engine-type: vllm-omni
+      llm-d.ai/role: aggregated
+    includeSelectors: true
+    includeTemplates: true
+    fields:
+      - group: apps
+        version: v1
+        kind: Deployment
+        path: metadata/labels
+        create: true
+      - group: apps
+        version: v1
+        kind: Deployment
+        path: spec/selector/matchLabels
+        create: true
+      - group: apps
+        version: v1
+        kind: Deployment
+        path: spec/template/metadata/labels
+        create: true
+      - version: v1
+        kind: Service
+        path: metadata/labels
+        create: true
