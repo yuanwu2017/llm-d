@@ -4,19 +4,19 @@ kind: Kustomization
 # Aggregated (single-worker) Wan text-to-video model server on Intel XPU.
 #
 # This is intentionally SELF-CONTAINED and does NOT extend the PD `vllm` base:
-# the Wan worker is a Dynamo deployment (frontend + vllm-omni diffusion worker),
-# not a vanilla `vllm serve` pod, so the PD strategic-merge patches do not apply.
+# the Wan worker is a single vLLM-Omni process (`vllm serve <model> --omni`)
+# that serves the OpenAI HTTP API (/v1/videos) and runs the full diffusion
+# pipeline (UMT5 + DiT + VAE) in one stage, so the PD strategic-merge patches
+# do not apply. No Dynamo, no etcd, no NATS — the vllm-omni:xpu image ships
+# everything needed.
 #
-# Topology: one Pod runs the Dynamo frontend (OpenAI-compatible HTTP, /v1/videos)
-# plus the aggregated vllm-omni diffusion worker (UMT5 + DiT + VAE) pinned to a
-# single Intel XPU via ZE_AFFINITY_MASK. This is the v1 bring-up target
-# (Wan2.1-T2V-1.3B, BF16, enforce-eager). EPD pool-splitting is a follow-up that
-# depends on the upstream encode-stage split (see wan-epd-xpu-design.md §4.1.2).
+# Topology: one Pod, one Intel XPU (pinned via ZE_AFFINITY_MASK). This is the v1
+# bring-up target (Wan2.1-T2V-1.3B, BF16, enforce-eager). The disaggregated
+# Encode/Decode (EPD) two-pool counterpart lives in ../vllm-omni-epd/.
 
 resources:
   - resource-claim-templates.yaml
   - deployment.yaml
-  - service.yaml
 
 namePrefix: agg-video-xpu-vllm-omni-
 
@@ -54,8 +54,4 @@ labels:
         version: v1
         kind: Deployment
         path: spec/template/metadata/labels
-        create: true
-      - version: v1
-        kind: Service
-        path: metadata/labels
         create: true

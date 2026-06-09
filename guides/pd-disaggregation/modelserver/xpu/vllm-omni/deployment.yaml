@@ -12,15 +12,12 @@ spec:
           - 107
       containers:
         # ---------------------------------------------------------------------
-        # Aggregated Wan video worker: Dynamo frontend (/v1/videos) + vllm-omni
-        # diffusion worker in a single Pod. Mirrors the launch logic of
-        # dynamo/examples/backends/vllm/launch/xpu/agg_omni_video_xpu.sh.
+        # Aggregated Wan video worker: a single vLLM-Omni process that serves the
+        # OpenAI-compatible HTTP API (/v1/videos) AND runs the full diffusion
+        # pipeline (UMT5 + DiT + VAE) in one stage, pinned to one Intel XPU.
         #
-        # The frontend and worker discover each other via Dynamo's distributed
-        # runtime (etcd + NATS), provided here as in-Pod sidecars on localhost so
-        # the manifest is self-contained for single-node bring-up. For a real
-        # cluster, prefer the Dynamo Kubernetes operator (DynamoGraphDeployment)
-        # with shared etcd/NATS services.
+        # This uses vLLM-Omni's OWN OpenAI server (`vllm serve <model> --omni`).
+        # No Dynamo, no etcd, no NATS — the image already ships everything needed.
         # ---------------------------------------------------------------------
         - name: modelserver
           image: REPLACE_MODEL_SERVER_IMAGE
@@ -28,12 +25,8 @@ spec:
           args:
             - |
               set -e
-              python -m dynamo.frontend &
-              sleep 2
-              exec python -m dynamo.vllm.omni \
-                --model "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" \
-                --output-modalities video \
-                --media-output-fs-url file:///tmp/dynamo_media \
+              exec vllm serve "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" --omni \
+                --port 8000 \
                 --enforce-eager
           ports:
             - name: http
@@ -51,13 +44,6 @@ spec:
               value: "1"
             - name: VLLM_WORKER_MULTIPROC_METHOD
               value: "spawn"
-            # Dynamo distributed runtime endpoints (sidecars below).
-            - name: ETCD_ENDPOINTS
-              value: "http://localhost:2379"
-            - name: NATS_SERVER
-              value: "nats://localhost:4222"
-            - name: DYN_HTTP_PORT
-              value: "8000"
             - name: HF_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -75,8 +61,6 @@ spec:
           volumeMounts:
             - mountPath: /dev/shm
               name: shm
-            - mountPath: /tmp/dynamo_media
-              name: media
             - mountPath: /.cache
               name: torch-compile-cache
           startupProbe:
@@ -101,26 +85,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
-        # --- Dynamo runtime sidecars (single-node bring-up only) -------------
-        - name: etcd
-          image: quay.io/coreos/etcd:v3.5.21
-          command:
-            - etcd
-            - --listen-client-urls=http://0.0.0.0:2379
-            - --advertise-client-urls=http://localhost:2379
-            - --data-dir=/etcd-data
-          ports:
-            - name: etcd
-              containerPort: 2379
-          volumeMounts:
-            - mountPath: /etcd-data
-              name: etcd-data
-        - name: nats
-          image: nats:2.11-alpine
-          args: ["-js"]
-          ports:
-            - name: nats
-              containerPort: 4222
       resourceClaims:
         - name: xpu-video-claim
           resourceClaimTemplateName: xpu-video-claim
@@ -129,9 +93,5 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 16Gi
-        - name: media
-          emptyDir: {}
-        - name: etcd-data
-          emptyDir: {}
         - name: torch-compile-cache
           emptyDir: {}

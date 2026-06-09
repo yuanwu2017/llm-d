@@ -1,7 +1,7 @@
 # Path-scoped HTTPRoute for the aggregated Wan text-to-video endpoint.
 #
 # This sends only /v1/videos (the OpenAI-compatible video generation path served
-# by the Dynamo frontend) to the Wan InferencePool, so the shared
+# by the vLLM-Omni HTTP API) to the Wan InferencePool, so the shared
 # llm-d-inference-gateway can also host text LLM pools on /v1/chat/completions,
 # /v1/completions, etc. without a catch-all route capturing their traffic.
 #
