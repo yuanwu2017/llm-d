@@ -25,6 +25,7 @@ This guide includes configurations for the following accelerators and inference 
 | Backend            | Directory                  | Notes                                      |
 | ------------------ | -------------------------- | ------------------------------------------ |
 | NVIDIA GPU         | `modelserver/gpu/vllm/${INFRA_PROVIDER}/`    | Default configuration (`INFRA_PROVIDER` options: `base`, `gke`)                      |
+| Intel XPU          | `modelserver/xpu/vllm-omni/`                 | Wan2.1-T2V-1.3B aggregated deployment via vLLM-Omni                                  |
 
 ---
 
@@ -104,11 +105,15 @@ helm install ${GUIDE_NAME} \
 
 ### 2. Deploy the Model Server
 
-Apply the Kustomize overlays for your specific backend (defaulting to NVIDIA GPU / vLLM):
+Apply the Kustomize overlays for your specific backend:
 
 ```bash
+# NVIDIA GPU / vLLM
 export INFRA_PROVIDER=gke # base | gke
 kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
+
+# Intel XPU / vLLM-Omni
+kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
 ```
 
 ### 3. (Optional) Enable monitoring
