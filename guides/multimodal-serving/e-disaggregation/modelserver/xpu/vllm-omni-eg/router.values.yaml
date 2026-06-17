@@ -1,4 +1,4 @@
-## llm-d router (EPP + gateway) overrides for the DISAGGREGATED (EPD) Wan
+## llm-d router (EPP + gateway) overrides for the DISAGGREGATED (EG) Wan
 ## text-to-video model server on Intel XPU.
 ##
 ## Layer on top of: guides/recipes/router/base.values.yaml
@@ -6,9 +6,9 @@
 ##            -f guides/multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni-eg/router.values.yaml
 ##
 ## Only the encode/master Pod exposes the HTTP API (/v1/videos); the headless
-## decode Pod has no HTTP endpoint. So the InferencePool / EPP selects ONLY the
+## generator Pod has no HTTP endpoint. So the InferencePool / EPP selects ONLY the
 ## encode Pods (label llm-d.ai/role pinned via modelServers.matchLabels below).
-## The EPP load-balances across encode-master REPLICAS; the decode pool scales
+## The EPP load-balances across encode-master REPLICAS; the generator pool scales
 ## independently and is reached internally via the Omni master, NOT the gateway.
 ##
 ## Scoring profile is identical to the aggregated guide: video diffusion has no
@@ -27,9 +27,9 @@ router:
     create: false
 
   epp:
-    pluginsConfigFile: "wan-video-epd-xpu-plugins.yaml"
+    pluginsConfigFile: "wan-video-eg-xpu-plugins.yaml"
     pluginsCustomConfig:
-      wan-video-epd-xpu-plugins.yaml: |
+      wan-video-eg-xpu-plugins.yaml: |
         apiVersion: llm-d.ai/v1alpha1
         kind: EndpointPickerConfig
         plugins:
@@ -47,5 +47,5 @@ router:
     matchLabels:
       llm-d.ai/guide: "multimodal-video"
       # Restrict to the encode/master Pods (the only ones serving HTTP). The
-      # decode Pods do NOT carry llm-d.ai/guide, so they are excluded.
+      # generator Pods do NOT carry llm-d.ai/guide, so they are excluded.
       llm-d.ai/role: "encode"

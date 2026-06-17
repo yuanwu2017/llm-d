@@ -1,5 +1,5 @@
-# Decode pod (Stage 1, model_stage=dit) — HEADLESS stage worker. Loads the DiT
-# transformer + VAE (~13.5 GiB for Wan2.1-1.3B), consumes the encode stage's
+# Generator pod (Stage 1, model_stage=dit) — HEADLESS stage worker. Loads the
+# DiT transformer + VAE (~13.5 GiB for Wan2.1-1.3B), consumes the encode stage's
 # prompt embeddings, runs the denoise loop + VAE decode. Claims 1 Intel XPU.
 #
 # Native vLLM-Omni distributed mode (NOT Dynamo): --headless --stage-id 1 makes
@@ -12,26 +12,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: decode
+  name: generator
   labels:
-    llm-d.ai/role: decode
+    llm-d.ai/role: generator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: wan-epd-decode
+      app: wan-eg-generator
   template:
     metadata:
       labels:
-        app: wan-epd-decode
-        llm-d.ai/role: decode
+        app: wan-eg-generator
+        llm-d.ai/role: generator
     spec:
       securityContext:
         fsGroup: 107
         supplementalGroups:
           - 107
       containers:
-        - name: decode
+        - name: generator
           image: REPLACE_MODEL_SERVER_IMAGE
           command: ["/bin/bash", "-c"]
           args:
@@ -69,7 +69,7 @@ spec:
               cpu: "16"
               memory: 64Gi
             claims:
-              - name: xpu-decode-claim
+              - name: xpu-generator-claim
           volumeMounts:
             - mountPath: /etc/wan
               name: stage-config
@@ -79,12 +79,12 @@ spec:
             - mountPath: /.cache
               name: torch-compile-cache
       resourceClaims:
-        - name: xpu-decode-claim
-          resourceClaimTemplateName: xpu-decode-claim
+        - name: xpu-generator-claim
+          resourceClaimTemplateName: xpu-generator-claim
       volumes:
         - name: stage-config
           configMap:
-            name: wan-epd-stage-config
+            name: wan-eg-stage-config
         - name: shm
           emptyDir:
             medium: Memory

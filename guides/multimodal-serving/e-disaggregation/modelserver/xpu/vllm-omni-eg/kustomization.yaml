@@ -1,20 +1,20 @@
-# Two-pool Encode/Decode (EPD) disaggregated Wan text-to-video model server on
-# Intel XPU, using vLLM-Omni's OWN native multi-stage distributed serving.
+# Two-pool Encoder/Generator (EG) disaggregated Wan text-to-video model server
+# on Intel XPU, using vLLM-Omni's OWN native multi-stage distributed serving.
 #
 # Topology (NO Dynamo, NO etcd, NO NATS):
-#   * encode Pod  = Omni master + HTTP API (/v1/videos) + Stage 0 (UMT5).
-#   * decode Pod  = headless Stage 1 (DiT + VAE), registers to the master via
-#                   the omni-master Service (ZMQ).
+#   * encode Pod    = Omni master + HTTP API (/v1/videos) + Stage 0 (UMT5).
+#   * generator Pod = headless Stage 1 (DiT + VAE), registers to the master via
+#                     the omni-master Service (ZMQ).
 #   Both Pods run the SAME vllm-omni:xpu image; each selects its stage from the
 #   shared wan2_2_epd.yaml stage config (mounted from a ConfigMap).
 #
 # This is the disaggregated counterpart of ../vllm-omni/ (aggregated). The two
-# pools scale independently (encode is light UMT5; decode is the heavy DiT loop).
+# pools scale independently (encode is light UMT5; generator is the heavy DiT loop).
 #
-# NOTE: no namePrefix is applied. The decode Pod reaches the master via the
+# NOTE: no namePrefix is applied. The generator Pod reaches the master via the
 # fixed `omni-master` Service DNS name, so renaming Services would break that
 # in-manifest dependency. Deploy into a dedicated namespace for isolation
-# instead (kubectl create namespace wan-epd && kubectl apply -k . -n wan-epd).
+# instead (kubectl create namespace wan-eg && kubectl apply -k . -n wan-eg).
 #
 # Cross-pod stage transport for the embeddings rides the native Omni stage
 # sockets; cross-NODE XPU GDR (NIXL/UCX ze_copy) is the P3 follow-up. For

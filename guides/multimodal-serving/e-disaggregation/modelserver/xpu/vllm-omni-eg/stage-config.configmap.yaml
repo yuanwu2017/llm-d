@@ -1,7 +1,7 @@
-# vLLM-Omni 2-stage EPD topology, shipped as a ConfigMap so the encode worker,
-# decode worker, and omni-router Pods all mount the IDENTICAL stage config at
-# /etc/wan/wan2_2_epd.yaml (each role selects its slice via --stage-id /
-# --omni-router).
+# vLLM-Omni 2-stage EG topology, shipped as a ConfigMap so the encode worker,
+# generator worker, and omni-router Pods all mount the IDENTICAL stage config at
+# /etc/wan/wan2_2_epd.yaml (legacy filename kept for compatibility; each role
+# selects its slice via --stage-id / --omni-router).
 #
 # Content is the validated wan2_2_epd.yaml from
 # vllm_omni/platforms/xpu/stage_configs/wan2_2_epd.yaml (HW-validated on Arc
@@ -11,7 +11,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: wan-epd-stage-config
+  name: wan-eg-stage-config
 data:
   wan2_2_epd.yaml: |
     stage_args:
@@ -51,9 +51,9 @@ data:
           distributed_executor_backend: "mp"
           vae_use_tiling: true
           engine_output_type: video
-          # EPD decode stage: embeddings come from stage 0, so skip loading the
-          # ~10 GiB UMT5 text encoder (dead weight here) — the bulk of the EPD
-          # memory win on the decode card.
+          # EG generator stage: embeddings come from stage 0, so skip loading
+          # the ~10 GiB UMT5 text encoder (dead weight here) — the bulk of the
+          # EG memory win on the generator card.
           skip_text_encoder: true
           parallel_config:
             tensor_parallel_size: 1
