@@ -12,7 +12,8 @@ kind: Kustomization
 #
 # Topology: one Pod, one Intel XPU (pinned via ZE_AFFINITY_MASK). This is the v1
 # bring-up target (Wan2.1-T2V-1.3B, BF16, enforce-eager). The disaggregated
-# Encode/Decode (EPD) two-pool counterpart lives in ../vllm-omni-epd/.
+# Encoder/Generator (EG) two-pool counterpart lives in
+# ../../../../multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni-eg/.
 
 resources:
   - resource-claim-templates.yaml
