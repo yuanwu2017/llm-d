@@ -1,0 +1,93 @@
+# Generator pod (Stage 1, model_stage=dit) — HEADLESS stage worker. Loads the
+# DiT transformer + VAE (~13.5 GiB for Wan2.1-1.3B), consumes the encode stage's
+# prompt embeddings, runs the denoise loop + VAE decode. Claims 1 Intel XPU.
+#
+# Native vLLM-Omni distributed mode (NOT Dynamo): --headless --stage-id 1 makes
+# this a stage worker that registers to the encode pod's Omni master via the
+# omni-master Service (ZMQ). No HTTP server here; no etcd / NATS / Dynamo.
+#
+# This is the throughput-dominant pool — scale `replicas` independently of
+# encode (and add XPUs / tensor_parallel_size in the stage config for the
+# Wan2.2 A14B MoE variants).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: generator
+  labels:
+    llm-d.ai/role: generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wan-eg-generator
+  template:
+    metadata:
+      labels:
+        app: wan-eg-generator
+        llm-d.ai/role: generator
+    spec:
+      securityContext:
+        fsGroup: 107
+        supplementalGroups:
+          - 107
+      containers:
+        - name: generator
+          image: REPLACE_MODEL_SERVER_IMAGE
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -e
+              # --stage-id 1 --headless => owns the DiT stage, registers to the
+              # master (encode Pod) over the omni-master Service ZMQ port.
+              exec vllm serve "Wan-AI/Wan2.1-T2V-1.3B-Diffusers" --omni \
+                --stage-configs-path /etc/wan/wan2_2_epd.yaml \
+                --stage-id 1 \
+                --headless \
+                --omni-master-address omni-master \
+                --omni-master-port 8092 \
+                --vae-use-tiling \
+                --enforce-eager
+          env:
+            - name: VLLM_TARGET_DEVICE
+              value: "xpu"
+            - name: VLLM_OMNI_TARGET_DEVICE
+              value: "xpu"
+            - name: ZE_AFFINITY_MASK
+              value: "0"
+            - name: VLLM_WORKER_MULTIPROC_METHOD
+              value: "spawn"
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: llm-d-hf-token
+                  key: HF_TOKEN
+          resources:
+            limits:
+              cpu: "16"
+              memory: 64Gi
+            requests:
+              cpu: "16"
+              memory: 64Gi
+            claims:
+              - name: xpu-generator-claim
+          volumeMounts:
+            - mountPath: /etc/wan
+              name: stage-config
+              readOnly: true
+            - mountPath: /dev/shm
+              name: shm
+            - mountPath: /.cache
+              name: torch-compile-cache
+      resourceClaims:
+        - name: xpu-generator-claim
+          resourceClaimTemplateName: xpu-generator-claim
+      volumes:
+        - name: stage-config
+          configMap:
+            name: wan-eg-stage-config
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+        - name: torch-compile-cache
+          emptyDir: {}
