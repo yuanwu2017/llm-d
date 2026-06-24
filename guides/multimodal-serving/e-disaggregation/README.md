@@ -29,7 +29,7 @@ In E/PD, dedicated encode workers handle multimodal processing while a single wo
 E/P/D extends P/D disaggregation by adding a dedicated encode stage. This provides maximum specialization, with multiple encode workers processing multimodal content in parallel:
 
 * 2 Encode Workers (multimodal encoding, parallelized across entries)
-* 4 TP=4 Prefill Workers
+* 2 TP=4 Prefill Workers
 * 2 TP=4 Decode Workers
 
 ### Best Practices
@@ -63,20 +63,19 @@ git clone https://github.com/llm-d/llm-d.git && cd llm-d && git checkout ${branc
 
 **For E/PD:**
 ```bash
-export GAIE_VERSION=v1.5.0
-export ROUTER_CHART_VERSION=v0
+export REPO_ROOT=$(realpath $(git rev-parse --show-toplevel))
+source ${REPO_ROOT}/guides/env.sh
 export RELEASE_NAME="e-disaggregation"
 export GUIDE_PATH="multimodal-serving/e-disaggregation"
 export TOPOLOGY="e-pd"
 export NAMESPACE="llm-d-e-pd-disaggregation"
 export MODEL_NAME="Qwen/Qwen3-VL-32B-Instruct"
-export REPO_ROOT=$(realpath $(git rev-parse --show-toplevel))
 ```
 
 **For E/P/D:**
 ```bash
-export GAIE_VERSION=v1.5.0
-export ROUTER_CHART_VERSION=v0
+export REPO_ROOT=$(realpath $(git rev-parse --show-toplevel))
+source ${REPO_ROOT}/guides/env.sh
 export RELEASE_NAME="e-disaggregation"
 export GUIDE_PATH="multimodal-serving/e-disaggregation"
 export TOPOLOGY="e-p-d"
@@ -115,7 +114,7 @@ This deploys the llm-d Router with an Envoy sidecar, it doesn't set up a Kuberne
 
 ```bash
 helm install ${RELEASE_NAME} \
-    oci://ghcr.io/llm-d/charts/llm-d-router-standalone-dev \
+    ${ROUTER_STANDALONE_CHART} \
     -f ${REPO_ROOT}/guides/recipes/router/base.values.yaml \
     -f ${REPO_ROOT}/guides/${GUIDE_PATH}/router/${TOPOLOGY}-disaggregation.values.yaml \
     -n ${NAMESPACE} --version ${ROUTER_CHART_VERSION}
@@ -132,7 +131,7 @@ To employ a Kubernetes Gateway managed proxy instead of the standalone one, then
 ```bash
 export PROVIDER_NAME=gke # other: na, agentgateway, or istio
 helm install ${RELEASE_NAME} \
-    oci://ghcr.io/llm-d/charts/llm-d-router-gateway-dev \
+    ${ROUTER_GATEWAY_CHART} \
     -f ${REPO_ROOT}/guides/recipes/router/base.values.yaml \
     -f ${REPO_ROOT}/guides/recipes/router/features/httproute-flags.yaml \
     -f ${REPO_ROOT}/guides/${GUIDE_PATH}/router/${TOPOLOGY}-disaggregation.values.yaml \
@@ -153,11 +152,9 @@ kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/${GUIDE_PATH}/modelserver/g
 
 ### 3. Enable Monitoring (optional)
 
-> [!NOTE]
-> GKE provides [automatic application monitoring](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/configure-automatic-application-monitoring) out of the box. The llm-d [Monitoring stack](../../../docs/operations/observability) is not required for GKE, but it is available if you prefer to use it.
-
 - Install the [Monitoring stack](../../../docs/operations/observability).
-- Deploy the monitoring resources for this guide.
+- To enable Prometheus monitoring on the llm-d router, add `-f ${REPO_ROOT}/guides/recipes/router/features/monitoring.values.yaml` during the [router installation step](#1-deploy-the-llm-d-router).
+- Deploy the monitoring resources for model servers:
 
 ```bash
 kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/recipes/modelserver/components/monitoring-pd

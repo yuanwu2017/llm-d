@@ -10,10 +10,10 @@ spec:
           args:
             - --port=8000
             - --vllm-port=8200
-            - --connector=sglang
+            - --kv-connector=sglang
             - --zap-log-level=1
             - --secure-proxy=false
-          image: ghcr.io/llm-d/llm-d-routing-sidecar:v0.8.0
+          image: REPLACE_ROUTING_SIDECAR_IMAGE
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

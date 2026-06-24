@@ -59,7 +59,7 @@ On AWS, NIXL uses [libfabric](https://ofiwg.github.io/libfabric/) as the transpo
 | Cloud with RoCE (GKE, Azure, etc.) | UCCL | Software packet spraying avoids single-path congestion on shared fabric |
 | GKE with GPUDirect TCP-X | UCCL | Native support for Google's GPU-initiated TCP transport |
 | AWS with EFA | libfabric/UCCL | EFA requires OFI/libfabric; UCX doesn't support EFA |
-| TCP-only (XPU, HPU, CPU) | UCX/UCCL | Simplest configuration for non-RDMA environments |
+| TCP-only (XPU, CPU) | UCX/UCCL | Simplest configuration for non-RDMA environments |
 
 The core tradeoff:
 
@@ -82,7 +82,7 @@ vllm serve <model> \
 
 The `kv_role` is `kv_both` for both prefill and decode pods — each pod can both send and receive KV Cache.
 
-For XPU and HPU devices where KV transfer happens via CPU memory, add:
+For XPU devices where KV transfer happens via CPU memory, add:
 
 ```bash
 --kv-transfer-config '{"kv_connector":"NixlConnector","kv_role":"kv_both","kv_buffer_device":"cpu"}'
@@ -122,7 +122,7 @@ UCX transport is configured via environment variables:
 | `UCX_PROTO_INFO` | Check transport selection | `y` |
 | `UCX_NET_DEVICES` | Network devices to use for transport | e.g. `mlx5_0:1, mlx5_1:1` |
 
-For RDMA-capable clusters, UCX will automatically use RDMA verbs when available. For TCP-only clusters (XPU, HPU), set `UCX_TLS=tcp`.
+For RDMA-capable clusters, UCX will automatically use RDMA verbs when available. For TCP-only clusters (XPU), set `UCX_TLS=tcp`.
 
 ### RDMA Resources and Capabilities
 
@@ -255,6 +255,6 @@ In the future, this diagnostic will be automated as runtime scripts.
 
 - [NIXL repository](https://github.com/ai-dynamo/nixl)
 - [UCCL repository](https://github.com/ai-dynamo/uccl)
-- [P/D Disaggregation Well-Lit Path](../../well-lit-paths/capabilities/pd-disaggregation.md) — deployment patterns using NIXL
-- [Wide Expert-Parallelism Well-Lit Path](../../well-lit-paths/capabilities/wide-expert-parallelism.md) — multi-node deployment with DeepEP networking
+- [P/D Disaggregation Well-Lit Path](../../well-lit-paths/foundations/pd-disaggregation.md) — deployment patterns using NIXL
+- [Wide Expert-Parallelism Well-Lit Path](../../well-lit-paths/foundations/wide-expert-parallelism.md) — multi-node deployment with DeepEP networking
 - [Model Servers](../../architecture/core/model-servers.md) — vLLM/SGLang configuration including KV transfer flags
