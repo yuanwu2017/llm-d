@@ -5,13 +5,7 @@ Serve Alibaba's **Wan2.1-T2V-1.3B** text-to-video diffusion model on **Intel XPU
 
 This is the **aggregated** topology: one pod runs the OpenAI-compatible HTTP API
 (`/v1/videos`) and the full diffusion pipeline (UMT5 text encoder + DiT + VAE) in
-one process, pinned to a single Intel XPU. For the disaggregated Encoder/Generator
-two-pool variant, see
-[`../../../../e-disaggregation/modelserver/xpu/vllm-omni-eg/`](../../../../e-disaggregation/modelserver/xpu/vllm-omni-eg/).
-
-> **No Dynamo, no etcd, no NATS.** The pod runs `vllm serve <model> --omni`,
-> which is vLLM-Omni's own OpenAI server. The `vllm-omni:xpu` image ships
-> everything needed.
+one process, pinned to a single Intel XPU.
 
 ## Contents
 
@@ -39,7 +33,7 @@ two-pool variant, see
 ## Deploy
 
 ```bash
-cd guides/multimodal-serving/optimized-baseline/modelserver/xpu/vllm-omni
+cd guides/multimodal-serving/aggregation/modelserver/xpu/vllm-omni
 
 # 1) Set your image in kustomization.yaml (replace REPLACE_MODEL_SERVER_IMAGE).
 

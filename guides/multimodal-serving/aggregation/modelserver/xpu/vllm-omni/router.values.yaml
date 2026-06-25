@@ -3,7 +3,7 @@
 ##
 ## Layer on top of: guides/recipes/router/base.values.yaml
 ##   helm ... -f guides/recipes/router/base.values.yaml \
-##            -f guides/multimodal-serving/optimized-baseline/modelserver/xpu/vllm-omni/router.values.yaml
+##            -f guides/multimodal-serving/aggregation/modelserver/xpu/vllm-omni/router.values.yaml
 ##
 ## Why this profile differs from the LLM PD profile:
 ##   * Video diffusion has no autoregressive KV cache and no token-prefix reuse,
