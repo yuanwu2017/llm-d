@@ -24,7 +24,7 @@ on:
         value: ${{ jobs.detect-changes.outputs.xpu }}
       xpu-omni:
         description: 'Whether XPU vLLM-Omni image was built'
-        value: ${{ jobs.detect-changes.outputs.xpu-omni }}
+        value: ${{ jobs.detect-changes.outputs['xpu-omni'] }}
   workflow_dispatch:
     inputs:
       platforms:
