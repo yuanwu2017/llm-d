@@ -71,7 +71,7 @@ jobs:
       gb200: ${{ steps.force.outputs.gb200 || steps.platforms-input.outputs.gb200 || steps.filter.outputs.gb200 || steps.dispatch.outputs.gb200 }}
       rocm: ${{ steps.force.outputs.rocm || steps.platforms-input.outputs.rocm || steps.filter.outputs.rocm || steps.dispatch.outputs.rocm }}
       xpu: ${{ steps.force.outputs.xpu || steps.platforms-input.outputs.xpu || steps.filter.outputs.xpu || steps.dispatch.outputs.xpu }}
-      xpu-omni: ${{ steps.force.outputs.xpu-omni || steps.platforms-input.outputs.xpu-omni || steps.filter.outputs.xpu-omni || steps.dispatch.outputs.xpu-omni }}
+      xpu-omni: ${{ steps.force.outputs['xpu-omni'] || steps.platforms-input.outputs['xpu-omni'] || steps.filter.outputs['xpu-omni'] || steps.dispatch.outputs['xpu-omni'] }}
       cpu: ${{ steps.force.outputs.cpu || steps.platforms-input.outputs.cpu || steps.filter.outputs.cpu || steps.dispatch.outputs.cpu }}
       rdma-tools: ${{ steps.filter.outputs.rdma-tools }}
     steps:
@@ -1387,7 +1387,7 @@ jobs:
 
   xpu-omni-build-llm-d:
     needs: [detect-changes]
-    if: ${{ needs.detect-changes.outputs.xpu-omni == 'true' }}
+    if: ${{ needs.detect-changes.outputs['xpu-omni'] == 'true' }}
     strategy:
       fail-fast: false
     runs-on: xpu
