@@ -91,13 +91,13 @@ jobs:
         id: platforms-input
         run: |
           platforms="${{ inputs.platforms }}"
-          echo "cuda=$(echo $platforms | grep -q cuda && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "aws=$(echo $platforms | grep -q aws && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "gb200=$(echo $platforms | grep -q gb200 && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "rocm=$(echo $platforms | grep -q rocm && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu=$(echo $platforms | grep -q xpu && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu-omni=$(echo $platforms | grep -q xpu-omni && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "cpu=$(echo $platforms | grep -q cpu && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || '' }}
@@ -159,13 +159,13 @@ jobs:
         id: dispatch
         run: |
           platforms="${{ inputs.platforms }}"
-          echo "cuda=$(echo $platforms | grep -q cuda && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "aws=$(echo $platforms | grep -q aws && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "gb200=$(echo $platforms | grep -q gb200 && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "rocm=$(echo $platforms | grep -q rocm && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu=$(echo $platforms | grep -q xpu && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu-omni=$(echo $platforms | grep -q xpu-omni && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "cpu=$(echo $platforms | grep -q cpu && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
 
   cuda-build-llm-d-debug:
     needs: [detect-changes]
@@ -194,25 +194,25 @@ jobs:
           #   runner: vllm-runner-arm
           #   os: ubuntu
           #   base_image_suffix: ubuntu24.04
-          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          #   image_suffix: "-ubuntu-debug"
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || '' }}
 
       - name: Load version configuration from file
         id: common-version
         run: |
           # Read vLLM and CUDA versions from docker/common-versions file and set as outputs
-          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
-          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          source docker/common-versions
+          echo "repo=${VLLM_REPO}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${VLLM_COMMIT_SHA}" >> $GITHUB_OUTPUT
+          echo "precompiled_wheel_commit=${VLLM_PRECOMPILED_WHEEL_COMMIT}" >> $GITHUB_OUTPUT
+          echo "prebuilt=${VLLM_PREBUILT}" >> $GITHUB_OUTPUT
+          echo "use_precompiled=${VLLM_USE_PRECOMPILED}" >> $GITHUB_OUTPUT
+          echo "cuda_major=${CUDA_MAJOR}" >> $GITHUB_OUTPUT
           echo "cuda_minor=${CUDA_MINOR}" >> $GITHUB_OUTPUT
           echo "cuda_patch=${CUDA_PATCH}" >> $GITHUB_OUTPUT
           echo "offloading_connector_version=${LLM_D_OFFLOADING_CONNECTOR_VERSION}" >> $GITHUB_OUTPUT
