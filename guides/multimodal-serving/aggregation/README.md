@@ -135,8 +135,8 @@ kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_
 ### 2a. Wan Video (vLLM-Omni) Backend Notes
 
 - The Wan video backend uses a single aggregated worker with vLLM-Omni (`vllm serve --omni`).
-- Replace `REPLACE_MODEL_SERVER_IMAGE` in
-    `modelserver/xpu/vllm-omni/kustomization.yaml` before applying.
+- The default image comes from the `xpu-vllm-omni` image component
+    (`ghcr.io/llm-d/llm-d-xpu-omni`). Override it only if you need a custom build.
 - The path-scoped route in `modelserver/xpu/vllm-omni/httproute.yaml` targets
     only `/v1/videos` and points to the `wan-video-xpu` InferencePool.
 

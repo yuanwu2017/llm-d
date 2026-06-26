@@ -22,16 +22,13 @@ resources:
   - ../../../../../recipes/modelserver/base/single-host/default
   - resource-claim-templates.yaml
 
+components:
+  - ../../../../../recipes/modelserver/components/images/xpu-vllm-omni
+
 namePrefix: agg-video-xpu-vllm-omni-
 
 patches:
   - path: patch-vllm.yaml
-
-images:
-  # No public llm-d XPU + vllm-omni image is published yet; replace before apply.
-  - name: REPLACE_MODEL_SERVER_IMAGE
-    newName: REPLACE_MODEL_SERVER_IMAGE
-    newTag: latest
 
 labels:
   - pairs:

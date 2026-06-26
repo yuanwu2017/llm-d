@@ -14,7 +14,7 @@ on:
         type: string
         default: ''
       platforms:
-        description: 'Platforms to build (comma-separated: cuda,aws,gb200,xpu,cpu). Overrides change detection when non-empty.'
+        description: 'Platforms to build (comma-separated: cuda,aws,gb200,xpu,xpu-omni,cpu). Overrides change detection when non-empty.'
         required: false
         type: string
         default: ''
@@ -22,10 +22,13 @@ on:
       xpu:
         description: 'Whether XPU image was built'
         value: ${{ jobs.detect-changes.outputs.xpu }}
+      xpu-omni:
+        description: 'Whether XPU vLLM-Omni image was built'
+        value: ${{ jobs.detect-changes.outputs.xpu-omni }}
   workflow_dispatch:
     inputs:
       platforms:
-        description: "Platforms to build (comma-separated: cuda,aws,gb200,xpu,cpu)"
+        description: "Platforms to build (comma-separated: cuda,aws,gb200,xpu,xpu-omni,cpu)"
         required: false
         default: "cuda"
         type: string
@@ -68,6 +71,7 @@ jobs:
       gb200: ${{ steps.force.outputs.gb200 || steps.platforms-input.outputs.gb200 || steps.filter.outputs.gb200 || steps.dispatch.outputs.gb200 }}
       rocm: ${{ steps.force.outputs.rocm || steps.platforms-input.outputs.rocm || steps.filter.outputs.rocm || steps.dispatch.outputs.rocm }}
       xpu: ${{ steps.force.outputs.xpu || steps.platforms-input.outputs.xpu || steps.filter.outputs.xpu || steps.dispatch.outputs.xpu }}
+      xpu-omni: ${{ steps.force.outputs.xpu-omni || steps.platforms-input.outputs.xpu-omni || steps.filter.outputs.xpu-omni || steps.dispatch.outputs.xpu-omni }}
       cpu: ${{ steps.force.outputs.cpu || steps.platforms-input.outputs.cpu || steps.filter.outputs.cpu || steps.dispatch.outputs.cpu }}
       rdma-tools: ${{ steps.filter.outputs.rdma-tools }}
     steps:
@@ -80,6 +84,7 @@ jobs:
           echo "gb200=true" >> $GITHUB_OUTPUT
           echo "rocm=true" >> $GITHUB_OUTPUT
           echo "xpu=true" >> $GITHUB_OUTPUT
+          echo "xpu-omni=true" >> $GITHUB_OUTPUT
           echo "cpu=true" >> $GITHUB_OUTPUT
       - name: Parse platforms input (from workflow_call)
         if: inputs.force_build != true && inputs.platforms != ''
@@ -91,6 +96,7 @@ jobs:
           echo "gb200=$(echo $platforms | grep -q gb200 && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "rocm=$(echo $platforms | grep -q rocm && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "xpu=$(echo $platforms | grep -q xpu && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo $platforms | grep -q xpu-omni && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "cpu=$(echo $platforms | grep -q cpu && echo true || echo false)" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v6
         with:
@@ -137,6 +143,9 @@ jobs:
             xpu:
               - 'docker/Dockerfile.xpu'
               - 'docker/common-versions'
+            xpu-omni:
+              - 'docker/Dockerfile.xpu-omni'
+              - 'docker/common-versions'
             cpu:
               - 'docker/Dockerfile.cpu'
               - 'docker/common-versions'
@@ -155,6 +164,7 @@ jobs:
           echo "gb200=$(echo $platforms | grep -q gb200 && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "rocm=$(echo $platforms | grep -q rocm && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "xpu=$(echo $platforms | grep -q xpu && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo $platforms | grep -q xpu-omni && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "cpu=$(echo $platforms | grep -q cpu && echo true || echo false)" >> $GITHUB_OUTPUT
 
   cuda-build-llm-d-debug:
@@ -184,25 +194,25 @@ jobs:
           #   runner: vllm-runner-arm
           #   os: ubuntu
           #   base_image_suffix: ubuntu24.04
-          #   image_suffix: "-ubuntu-debug"
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref || '' }}
+          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
 
       - name: Load version configuration from file
         id: common-version
         run: |
           # Read vLLM and CUDA versions from docker/common-versions file and set as outputs
-          source docker/common-versions
-          echo "repo=${VLLM_REPO}" >> $GITHUB_OUTPUT
-          echo "commit_sha=${VLLM_COMMIT_SHA}" >> $GITHUB_OUTPUT
-          echo "precompiled_wheel_commit=${VLLM_PRECOMPILED_WHEEL_COMMIT}" >> $GITHUB_OUTPUT
-          echo "prebuilt=${VLLM_PREBUILT}" >> $GITHUB_OUTPUT
-          echo "use_precompiled=${VLLM_USE_PRECOMPILED}" >> $GITHUB_OUTPUT
-          echo "cuda_major=${CUDA_MAJOR}" >> $GITHUB_OUTPUT
+          echo "cuda=$(echo "$platforms" | grep -Eq '(^|,)cuda(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "aws=$(echo "$platforms" | grep -Eq '(^|,)aws(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "gb200=$(echo "$platforms" | grep -Eq '(^|,)gb200(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "rocm=$(echo "$platforms" | grep -Eq '(^|,)rocm(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu=$(echo "$platforms" | grep -Eq '(^|,)xpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "xpu-omni=$(echo "$platforms" | grep -Eq '(^|,)xpu-omni(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "cpu=$(echo "$platforms" | grep -Eq '(^|,)cpu(,|$)' && echo true || echo false)" >> $GITHUB_OUTPUT
           echo "cuda_minor=${CUDA_MINOR}" >> $GITHUB_OUTPUT
           echo "cuda_patch=${CUDA_PATCH}" >> $GITHUB_OUTPUT
           echo "offloading_connector_version=${LLM_D_OFFLOADING_CONNECTOR_VERSION}" >> $GITHUB_OUTPUT
@@ -1365,6 +1375,98 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
+
+      - name: Display vulnerability summary
+        run: |
+          echo "=== Vulnerability Scan Summary ==="
+          if [ -f trivy-results.sarif ]; then
+            echo "Scan completed. Check the Security tab for detailed results."
+          else
+            echo "No vulnerabilities found or scan failed."
+          fi
+
+  xpu-omni-build-llm-d:
+    needs: [detect-changes]
+    if: ${{ needs.detect-changes.outputs.xpu-omni == 'true' }}
+    strategy:
+      fail-fast: false
+    runs-on: xpu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || '' }}
+
+      - name: Load vLLM-Omni source ref from file
+        id: common-versions
+        run: |
+          source docker/common-versions
+          echo "omni_repo=${VLLM_OMNI_REPO}" >> $GITHUB_OUTPUT
+          echo "omni_ref=${VLLM_OMNI_REF}" >> $GITHUB_OUTPUT
+
+      - name: Checkout vLLM-Omni source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ steps.common-versions.outputs.omni_repo }}
+          ref: ${{ steps.common-versions.outputs.omni_ref }}
+          path: vllm-omni
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.GHCR_USER }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set image tag
+        id: set-tag
+        run: |
+          TAG="sha-$(git rev-parse --short HEAD)"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          PR_TAG="${{ github.event.pull_request.number }}"
+          if [ -n "${PR_TAG}" ]; then
+            echo "pr_tag=pr-${PR_TAG}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push the image
+        id: build-and-push
+        uses: docker/build-push-action@v7
+        with:
+          context: ./vllm-omni
+          file: ./docker/Dockerfile.xpu-omni
+          platforms: linux/amd64
+          push: true
+          provenance: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}-xpu-omni-dev:${{ steps.set-tag.outputs.tag }}
+            ${{ steps.set-tag.outputs.pr_tag != '' && format('{0}/{1}-xpu-omni-dev:{2}', env.REGISTRY, github.repository, steps.set-tag.outputs.pr_tag) || '' }}
+            ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.event_name != 'pull_request_target' && format('{0}/{1}-xpu-omni-dev:latest', env.REGISTRY, github.repository) || '' }}
+          github-token: ${{ secrets.GHCR_TOKEN }}
+        env:
+          DOCKER_BUILDKIT: "1"
+          BUILDKIT_PROGRESS: "plain"
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository }}-xpu-omni-dev:${{ steps.set-tag.outputs.tag }}
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+          scanners: vuln
+          timeout: 30m
+          skip-dirs: /root/.cache/uv
+        env:
+          TRIVY_USERNAME: ${{ secrets.GHCR_USER }}
+          TRIVY_PASSWORD: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'
 
       - name: Display vulnerability summary
         run: |
