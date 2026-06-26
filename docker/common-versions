@@ -25,6 +25,10 @@ VLLM_PRECOMPILED_WHEEL_COMMIT=0fc695fc6d1d82e9a5ac6835ac8e4e1c83703665 # maps to
 # Tag corresponds to vLLM v0.23.0 release (commit 0fc695fc6d1d82e9a5ac6835ac8e4e1c83703665).
 VLLM_XPU_BASE_IMAGE=public.ecr.aws/q9t5s3a7/vllm-ci-test-repo:0fc695fc6d1d82e9a5ac6835ac8e4e1c83703665-xpu
 
+# Used by XPU + vLLM-Omni: GitHub repository slug and pinned ref for image builds.
+VLLM_OMNI_REPO=vllm-project/vllm-omni
+VLLM_OMNI_REF=580a0efe40d749e2803f96af1f5f3b8897d08c2d
+
 # ============================================================================
 # CUDA Version Configuration
 # ============================================================================

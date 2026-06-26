@@ -1,10 +1,10 @@
 # Multimodal Optimized Baseline Guide
 
-This guide deploys the recommended [configuration](https://github.com/llm-d/llm-d-router/blob/main/docs/architecture.md) for multimodal vLLM deployments, reducing tail latency and increasing throughput through load-aware and prefix-cache aware balancing.
+This guide deploys recommended multimodal routing [configurations](https://github.com/llm-d/llm-d-router/blob/main/docs/architecture.md) for different serving variants.
 
-The multimodal-optimized-baseline defaults to two main routing criteria:
-* **Prefix-cache aware:** Scores candidate endpoints by estimating multimodal prompt prefix cache reuse (e.g., matching text + image hashes) on each model server.
-* **Load-aware:** Scores candidate endpoints based on queue depth and kv-cache utilization to prevent server bottlenecks.
+Routing strategy is workload-specific:
+* **Qwen3-VL text+image serving (vLLM):** Prefix-cache aware + load-aware balancing; prefix-cache scoring estimates multimodal prompt prefix reuse (e.g., matching text + image hashes), and load-aware scoring uses queue depth and KV-cache utilization.
+* **Wan text-to-video serving (vLLM-Omni):** Load-aware diffusion profile only; the Wan video path intentionally does not use prefix/KV cache scorers because diffusion generation is non-autoregressive.
 
 ---
 
@@ -25,6 +25,7 @@ This guide includes configurations for the following accelerators and inference 
 | Backend            | Directory                  | Notes                                      |
 | ------------------ | -------------------------- | ------------------------------------------ |
 | NVIDIA GPU         | `modelserver/gpu/vllm/${INFRA_PROVIDER}/`    | Default configuration (`INFRA_PROVIDER` options: `base`, `gke`)                      |
+| Intel XPU          | `modelserver/xpu/vllm-omni/`                 | Wan2.1-T2V-1.3B aggregated deployment via vLLM-Omni                                  |
 
 ---
 
@@ -101,14 +102,43 @@ helm install ${GUIDE_NAME} \
 
 </details>
 
-### 2. Deploy the Model Server
+#### Wan Video (vLLM-Omni) Router Profile
 
-Apply the Kustomize overlays for your specific backend (defaulting to NVIDIA GPU / vLLM):
+For the Wan video backend, install a dedicated router release with
+the diffusion-focused profile and disable the chart-generated catch-all HTTPRoute.
+Then apply the path-scoped HTTPRoute from the modelserver directory.
 
 ```bash
+helm install wan-video-xpu \
+    ${ROUTER_STANDALONE_CHART} \
+    -f ${REPO_ROOT}/guides/recipes/router/base.values.yaml \
+    -f ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/router/aggregation-video-xpu.values.yaml \
+    -n ${NAMESPACE} --version ${ROUTER_CHART_VERSION}
+
+kubectl apply -n ${NAMESPACE} -f \
+    ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/httproute.yaml
+```
+
+### 2. Deploy the Model Server
+
+Apply the Kustomize overlays for your specific backend:
+
+```bash
+# NVIDIA GPU / vLLM
 export INFRA_PROVIDER=gke # base | gke
 kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
+
+# Intel XPU / vLLM-Omni
+kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
 ```
+
+### 2a. Wan Video (vLLM-Omni) Backend Notes
+
+- The Wan video backend uses a single aggregated worker with vLLM-Omni (`vllm serve --omni`).
+- The default image comes from the `xpu-vllm-omni` image component
+    (`ghcr.io/llm-d/llm-d-xpu-omni`). Override it only if you need a custom build.
+- The path-scoped route in `modelserver/xpu/vllm-omni/httproute.yaml` targets
+    only `/v1/videos` and points to the `wan-video-xpu` InferencePool.
 
 ### 3. (Optional) Enable monitoring
 
@@ -177,6 +207,21 @@ curl -X POST http://${IP}/v1/chat/completions \
     }' | jq
 ```
 
+### 3. Send a Wan Video Test Request
+
+For the Wan backend, send a video generation request to `/v1/videos/sync`.
+
+```bash
+curl -X POST http://${IP}/v1/videos/sync \
+    -F model=Wan-AI/Wan2.1-T2V-1.3B-Diffusers \
+    -F prompt='A serene lakeside sunrise with mist over the water.' \
+    -F width=256 -F height=256 -F num_frames=17 \
+    -F num_inference_steps=8 -F guidance_scale=4.0 -F fps=16 -F seed=42 \
+    -o out.mp4
+```
+
+`/v1/videos` (without `/sync`) is the async variant that returns a job id.
+
 ---
 
 ## Cleanup
@@ -184,7 +229,10 @@ curl -X POST http://${IP}/v1/chat/completions \
 To tear down and clean up all deployed resources:
 ```bash
 helm uninstall ${GUIDE_NAME} -n ${NAMESPACE}
+helm uninstall wan-video-xpu -n ${NAMESPACE}
 kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
+kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
+kubectl delete -n ${NAMESPACE} -f ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/httproute.yaml
 kubectl delete namespace ${NAMESPACE}
 ```
 
