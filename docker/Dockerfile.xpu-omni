@@ -149,11 +149,7 @@ COPY . .
 
 ENV VLLM_OMNI_TARGET_DEVICE=xpu
 RUN --mount=type=cache,target=/root/.cache/uv \
-    echo "triton @ https://example.com/blocked" > /tmp/vllm_omni_constraints.txt && \
-    PIP_CONSTRAINT=/tmp/vllm_omni_constraints.txt \
-    uv pip install --no-build-isolation \
-    --extra-index-url https://mirrors.ustc.edu.cn/pypi/simple/ \
-    ".[dev]" && \
+    uv pip install --no-build-isolation ".[dev]" && \
     uv pip uninstall -y oneccl oneccl-devel
 
 FROM vllm-omni AS vllm-omni-openai
