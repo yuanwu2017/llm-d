@@ -26,6 +26,7 @@ This guide includes configurations for the following accelerators and inference 
 | ------------------ | -------------------------- | ------------------------------------------ |
 | NVIDIA GPU         | `modelserver/gpu/vllm/${INFRA_PROVIDER}/`    | Default configuration (`INFRA_PROVIDER` options: `base`, `gke`)                      |
 | Intel XPU          | `modelserver/xpu/vllm-omni/`                 | Wan2.1-T2V-1.3B aggregated deployment via vLLM-Omni                                  |
+| Intel XPU          | `modelserver/xpu/vllm/`    | Intel Arc Pro B60            |
 
 ---
 
@@ -139,6 +140,18 @@ kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_
     (`ghcr.io/llm-d/llm-d-xpu-omni`). Override it only if you need a custom build.
 - The path-scoped route in `modelserver/xpu/vllm-omni/httproute.yaml` targets
     only `/v1/videos` and points to the `wan-video-xpu` InferencePool.
+<details>
+<summary><h4>Other Accelerators</h4></summary>
+
+```bash
+# Intel XPU
+kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
+```
+
+> [!NOTE]
+> Intel XPU deployments use Kubernetes Dynamic Resource Allocation (DRA) with `resource.k8s.io/v1` `ResourceClaimTemplate` resources and per-container `resources.claims`. Ensure your cluster supports DRA, has the Intel device plugin/DRA components installed, and exposes the `gpu.intel.com` `DeviceClass` before applying this overlay.
+
+</details>
 
 ### 3. (Optional) Enable monitoring
 
@@ -233,6 +246,8 @@ helm uninstall wan-video-xpu -n ${NAMESPACE}
 kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
 kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
 kubectl delete -n ${NAMESPACE} -f ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/httproute.yaml
+# For Intel XPU:
+# kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
 kubectl delete namespace ${NAMESPACE}
 ```
 
