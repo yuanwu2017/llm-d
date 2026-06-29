@@ -25,8 +25,8 @@ This guide includes configurations for the following accelerators and inference 
 | Backend            | Directory                  | Notes                                      |
 | ------------------ | -------------------------- | ------------------------------------------ |
 | NVIDIA GPU         | `modelserver/gpu/vllm/${INFRA_PROVIDER}/`    | Default configuration (`INFRA_PROVIDER` options: `base`, `gke`)                      |
+| Intel XPU          | `modelserver/xpu/vllm/`                      | Qwen3-VL text+image on Intel Arc Pro B60            |
 | Intel XPU          | `modelserver/xpu/vllm-omni/`                 | Wan2.1-T2V-1.3B aggregated deployment via vLLM-Omni                                  |
-| Intel XPU          | `modelserver/xpu/vllm/`    | Intel Arc Pro B60            |
 
 ---
 
@@ -125,13 +125,19 @@ kubectl apply -n ${NAMESPACE} -f \
 Apply the Kustomize overlays for your specific backend:
 
 ```bash
-# NVIDIA GPU / vLLM
+# NVIDIA GPU / vLLM (Qwen3-VL text+image)
 export INFRA_PROVIDER=gke # base | gke
 kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
 
-# Intel XPU / vLLM-Omni
+# Intel XPU / vLLM (Qwen3-VL text+image)
+kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
+
+# Intel XPU / vLLM-Omni (Wan2.1 text-to-video)
 kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
 ```
+
+> [!NOTE]
+> Intel XPU deployments use Kubernetes Dynamic Resource Allocation (DRA) with `resource.k8s.io/v1` `ResourceClaimTemplate` resources and per-container `resources.claims`. Ensure your cluster supports DRA, has the Intel device plugin/DRA components installed, and exposes the `gpu.intel.com` `DeviceClass` before applying these overlays.
 
 ### 2a. Wan Video (vLLM-Omni) Backend Notes
 
@@ -140,18 +146,6 @@ kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_
     (`ghcr.io/llm-d/llm-d-xpu-omni`). Override it only if you need a custom build.
 - The path-scoped route in `modelserver/xpu/vllm-omni/httproute.yaml` targets
     only `/v1/videos` and points to the `wan-video-xpu` InferencePool.
-<details>
-<summary><h4>Other Accelerators</h4></summary>
-
-```bash
-# Intel XPU
-kubectl apply -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
-```
-
-> [!NOTE]
-> Intel XPU deployments use Kubernetes Dynamic Resource Allocation (DRA) with `resource.k8s.io/v1` `ResourceClaimTemplate` resources and per-container `resources.claims`. Ensure your cluster supports DRA, has the Intel device plugin/DRA components installed, and exposes the `gpu.intel.com` `DeviceClass` before applying this overlay.
-
-</details>
 
 ### 3. (Optional) Enable monitoring
 
@@ -243,11 +237,13 @@ To tear down and clean up all deployed resources:
 ```bash
 helm uninstall ${GUIDE_NAME} -n ${NAMESPACE}
 helm uninstall wan-video-xpu -n ${NAMESPACE}
+# NVIDIA GPU / vLLM
 kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/gpu/vllm/${INFRA_PROVIDER}/
+# Intel XPU / vLLM
+kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
+# Intel XPU / vLLM-Omni (Wan video)
 kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/
 kubectl delete -n ${NAMESPACE} -f ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm-omni/httproute.yaml
-# For Intel XPU:
-# kubectl delete -n ${NAMESPACE} -k ${REPO_ROOT}/guides/multimodal-serving/${GUIDE_NAME}/modelserver/xpu/vllm/
 kubectl delete namespace ${NAMESPACE}
 ```
 
