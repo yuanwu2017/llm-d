@@ -27,6 +27,12 @@ resources:
   - encode-deployment.yaml
   - decode-deployment.yaml
 
+# Shared pod config (securityContext, XPU env, stage-config/cache volumes+mounts)
+# is injected into both Deployments from here, so the manifests above only carry
+# their per-pod specifics.
+components:
+  - components/common
+
 images:
   # No public llm-d XPU + vllm-omni image is published yet; replace before apply.
   - name: REPLACE_MODEL_SERVER_IMAGE

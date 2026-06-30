@@ -26,12 +26,8 @@ spec:
         app: wan-eg-generator
         llm-d.ai/role: generator
     spec:
-      securityContext:
-        fsGroup: 107
-        supplementalGroups:
-          - 107
       containers:
-        - name: generator
+        - name: modelserver
           image: REPLACE_MODEL_SERVER_IMAGE
           command: ["/bin/bash", "-c"]
           args:
@@ -47,20 +43,6 @@ spec:
                 --omni-master-port 8092 \
                 --vae-use-tiling \
                 --enforce-eager
-          env:
-            - name: VLLM_TARGET_DEVICE
-              value: "xpu"
-            - name: VLLM_OMNI_TARGET_DEVICE
-              value: "xpu"
-            - name: ZE_AFFINITY_MASK
-              value: "0"
-            - name: VLLM_WORKER_MULTIPROC_METHOD
-              value: "spawn"
-            - name: HF_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: llm-d-hf-token
-                  key: HF_TOKEN
           resources:
             limits:
               cpu: "16"
@@ -70,24 +52,11 @@ spec:
               memory: 64Gi
             claims:
               - name: xpu-generator-claim
-          volumeMounts:
-            - mountPath: /etc/wan
-              name: stage-config
-              readOnly: true
-            - mountPath: /dev/shm
-              name: shm
-            - mountPath: /.cache
-              name: torch-compile-cache
       resourceClaims:
         - name: xpu-generator-claim
           resourceClaimTemplateName: xpu-generator-claim
       volumes:
-        - name: stage-config
-          configMap:
-            name: wan-eg-stage-config
         - name: shm
           emptyDir:
             medium: Memory
             sizeLimit: 16Gi
-        - name: torch-compile-cache
-          emptyDir: {}
