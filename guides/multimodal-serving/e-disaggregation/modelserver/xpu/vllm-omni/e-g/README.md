@@ -61,7 +61,7 @@ pool on its own signal and keep encode cards from carrying idle DiT weights.
 | `resource-claim-templates.yaml` | DRA `ResourceClaimTemplate`s — one `gpu.intel.com` device per pool. |
 | `kustomization.yaml` | Ties resources together; **no `namePrefix`** (see note). |
 | `httproute.yaml` | Path-scoped `HTTPRoute` sending `/v1/videos` to `InferencePool wan-video-eg-xpu`. |
-| `router.values.yaml` | Router/EPP diffusion profile; selects **only** the master pods (`role=encode`) for HTTP. |
+| `../../../../router/eg-video-xpu.values.yaml` | Router/EPP diffusion profile; selects **only** the master pods (`role=encode`) for HTTP. |
 
 > **The `omni-master` Service is required** — it is the only cross-pod channel
 > (the headless generator pod's ZMQ stage sockets connect to it). The HTTP
@@ -94,7 +94,7 @@ kubectl apply -k . -n wan-eg
 kubectl apply -f httproute.yaml -n wan-eg
 helm upgrade --install wan-video-eg-xpu <router-chart> \
   -f guides/recipes/router/base.values.yaml \
-  -f router.values.yaml
+  -f guides/multimodal-serving/e-disaggregation/router/eg-video-xpu.values.yaml
 ```
 
 The generator pod is co-scheduled on the same node as the master for single-node

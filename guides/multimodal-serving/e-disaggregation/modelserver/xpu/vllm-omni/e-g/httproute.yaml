@@ -6,7 +6,7 @@
 #
 # Prereqs:
 #   * A Gateway named `llm-d-inference-gateway` (see guides/prereq/gateways).
-#   * The router installed with router.httpRoute.create=false (router.values.yaml)
+#   * The router installed with router.httpRoute.create=false (router/eg-video-xpu.values.yaml)
 #     and a Helm release name of `wan-video-eg-xpu`, which is the InferencePool
 #     name referenced below. If you install under a different release name,
 #     update backendRefs[0].name to match.
