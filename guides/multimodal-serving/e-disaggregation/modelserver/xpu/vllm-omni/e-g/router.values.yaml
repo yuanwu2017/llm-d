@@ -3,7 +3,7 @@
 ##
 ## Layer on top of: guides/recipes/router/base.values.yaml
 ##   helm ... -f guides/recipes/router/base.values.yaml \
-##            -f guides/multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni-eg/router.values.yaml
+##            -f guides/multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni/e-g/router.values.yaml
 ##
 ## Only the encode/master Pod exposes the HTTP API (/v1/videos); the headless
 ## generator Pod has no HTTP endpoint. So the InferencePool / EPP selects ONLY the

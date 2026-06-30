@@ -81,7 +81,7 @@ vLLM-Omni image to replace `REPLACE_MODEL_SERVER_IMAGE`.
 ## Deploy
 
 ```bash
-cd guides/multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni-eg
+cd guides/multimodal-serving/e-disaggregation/modelserver/xpu/vllm-omni/e-g
 
 # 1) Set your image in kustomization.yaml (replace REPLACE_MODEL_SERVER_IMAGE).
 

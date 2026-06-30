@@ -8,7 +8,8 @@
 #   Both Pods run the SAME vllm-omni:xpu image; each selects its stage from the
 #   shared wan2_2_epd.yaml stage config (mounted from a ConfigMap).
 #
-# This is the disaggregated counterpart of ../vllm-omni/ (aggregated). The two
+# This is the disaggregated counterpart of the aggregated server in
+# ../../../../../aggregation/modelserver/xpu/vllm-omni/. The two
 # pools scale independently (encode is light UMT5; generator is the heavy DiT loop).
 #
 # NOTE: no namePrefix is applied. The generator Pod reaches the master via the
